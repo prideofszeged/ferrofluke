@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ferrofluid Playground</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="layout">
+    <section class="controls">
+      <h1>Ferrofluid Playground</h1>
+      <p>Tweak the settings to create your own ferrofluid magnet show.</p>
+      <form id="controls-form">
+        <fieldset>
+          <legend>Particles</legend>
+          <label title="Number of ferrofluid particles rendered each frame">
+            Count
+            <input type="range" id="particle-count" min="100" max="2000" step="50" value="700" />
+          </label>
+          <label title="Choose the geometric sprite used for each particle">
+            Shape
+            <select id="particle-shape">
+              <option value="circle">Circle</option>
+              <option value="square">Square</option>
+              <option value="triangle">Triangle</option>
+            </select>
+          </label>
+          <label title="Base colour tint applied to all particles">
+            Base Color
+            <input type="color" id="particle-color" value="#1e90ff" />
+          </label>
+          <label title="Halo size around each particle">
+            Glow
+            <input type="range" id="particle-glow" min="0" max="40" value="12" />
+          </label>
+          <label title="Overall movement speed for the particle swarm">
+            Particle Speed
+            <input type="range" id="particle-speed" min="0.2" max="3" step="0.05" value="1" />
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend>Magnet</legend>
+          <label title="Strength of the magnetic attraction or repulsion">
+            Strength
+            <input type="range" id="magnet-strength" min="50" max="600" value="220" />
+          </label>
+          <label title="Controls how quickly the field weakens with distance">
+            Falloff
+            <input type="range" id="magnet-falloff" min="0.5" max="4" step="0.1" value="1.6" />
+          </label>
+          <label title="Radius of the magnet indicator and influence bubble">
+            Magnet Size
+            <input type="range" id="magnet-size" min="10" max="60" step="1" value="22" />
+          </label>
+          <label title="Colour accent for the magnet indicator">
+            Magnet Color
+            <input type="color" id="magnet-color" value="#ff4500" />
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend>Field Lines</legend>
+          <label class="checkbox" title="Toggle visualisation of magnetic field lines">
+            <input type="checkbox" id="show-field-lines" checked />
+            Show field lines
+          </label>
+          <label title="Colour applied to the field line trails">
+            Line Color
+            <input type="color" id="field-line-color" value="#ffffff" />
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend>Game of Life</legend>
+          <label class="checkbox" title="Switch to a Game of Life cellular automaton simulation">
+            <input type="checkbox" id="life-mode" />
+            Enable Life mode
+          </label>
+          <label title="How many Life generations update every second">
+            Life Speed
+            <input type="range" id="life-speed" min="1" max="30" value="10" />
+          </label>
+          <label title="Pixel size of each Life cell">
+            Cell Size
+            <input type="range" id="life-cell-size" min="6" max="40" value="16" />
+          </label>
+          <label title="Birth/survival rule in B/S format (e.g. B3/S23)">
+            Rule
+            <input type="text" id="life-rule" value="B3/S23" />
+          </label>
+          <label title="Quickly apply a popular Life-like rule">
+            Preset
+            <select id="life-preset">
+              <option value="custom">Custom (keep current)</option>
+              <option value="B3/S23">Classic Life (B3/S23)</option>
+              <option value="B36/S23">HighLife (B36/S23)</option>
+              <option value="B2/S">Seeds (B2/S)</option>
+              <option value="B3678/S34678">Day & Night (B3678/S34678)</option>
+              <option value="B1357/S1357">Replicator (B1357/S1357)</option>
+              <option value="B3/S012345678">Life Without Death (B3/S012345678)</option>
+            </select>
+          </label>
+          <label title="How strongly the magnet biases Life cells when nearby">
+            Magnet Influence
+            <input type="range" id="life-magnet-bias" min="0" max="1" step="0.05" value="0.4" />
+          </label>
+          <label title="Colour used for alive Life cells">
+            Alive Colour
+            <input type="color" id="life-alive-color" value="#1e90ff" />
+          </label>
+          <label title="Colour used for dead Life cells">
+            Dead Colour
+            <input type="color" id="life-dead-color" value="#0b1020" />
+          </label>
+          <div class="button-row">
+            <button type="button" id="life-randomize" title="Reseed Life grid with a random pattern">Randomize Life</button>
+            <button type="button" id="life-clear" title="Clear all Life cells">Clear Life</button>
+          </div>
+        </fieldset>
+        <button type="button" id="reset-button" title="Respawn the particle swarm">Reset particles</button>
+      </form>
+      <p class="hint">Click or drag to move the magnet. Hold <kbd>Shift</kbd> to repel.</p>
+    </section>
+    <section class="canvas-wrapper">
+      <canvas id="ferro-canvas"></canvas>
+    </section>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
