@@ -4,15 +4,16 @@ A lightweight, browser-based ferrofluid simulation that reacts to a magnet you c
 
 ## Getting started
 
-1. Open `index.html` in a modern desktop browser (Chrome, Edge, Firefox, or Safari). No build step or dependencies required.
+1. Serve the folder locally for development (modules need HTTP). The quickest option is `python3 -m http.server 8000` and browse to `http://localhost:8000/index.dev.html`.
 2. Click and drag to position the magnet. Release to leave it hovering; grab it again any time. Hold **Shift** to flip to repulsion mode.
 
 ## Controls
 
 - **Particles** – tune the count, pick between circle, square, or triangle sprites, set a base colour, amplify the glow, and scale the swarm speed.
-- **Magnet** – change field strength, falloff, radius, and the colour of the magnet indicator.
+- **Magnet** – change field strength, falloff, radius, the colour of the indicator, and drop extra magnets with **Add Magnet** (use **Reset Magnets** to go back to one).
 - **Field lines** – toggle the stylised field visualiser and choose its colour.
 - **Game of Life** – flip into a cellular automaton mode, tune step speed, cell size, pick a B/S rule (or apply a preset), magnet bias, and the alive/dead colours. Seed the grid with **Randomize Life** or wipe it with **Clear Life**.
+- **Screensaver** – unleash autonomous mode: magnets drift, presets swap, and the palette breathes on its own. Control drift speed/preset interval or tap **Shuffle Screensaver** for a fresh combo.
 - **Reset particles** – respawn the swarm if you want to start afresh.
 
 ## Tips
@@ -22,6 +23,23 @@ A lightweight, browser-based ferrofluid simulation that reacts to a magnet you c
 - Reduce particle speed if you want smoother, slower waves; crank it up for more aggressive spikes.
 - Increasing magnet size widens the area of influence and fattens the marker, handy when you want sweeping motion without upping strength.
 - In Life mode, try HighLife (`B36/S23`) or Seeds (`B2/S`) with a high magnet bias—the magnet acts like a catalyst in attraction mode or a disintegration pulse in repulsion mode.
-- Because everything runs on the GPU-backed 2D canvas, resizing the window adapts the simulation instantly.
+- Run `FEATURES.md` for a backlog of visual experiments we want to chase next (multi-magnets, screensaver, colour choreography, etc.).
+
+## Project layout
+
+The app now uses ES modules so it is easy to grow new systems.
+
+- `src/main.js` - entry point that boots the simulation and hooks up the control panel.
+- `src/core/` - simulation building blocks (`ferro-simulation`, `particle-system`, `life-automaton`, `magnet`, `life-rule`).
+- `src/ui/controls.js` - form wiring that maps UI elements onto simulation setters.
+- `src/state/default-state.js` - shared defaults for both UI and simulation.
+
+Serve the files over HTTP (see step 1 above) so module imports resolve without CORS warnings.
+
+### Building a single-file bundle
+
+Run `node build.js` to generate `dist/index.html` and overwrite the root-level `index.html` with the standalone bundle. Open `index.html` directly (no server) when you just want the packaged experience.
+
+Because everything runs on the GPU-backed 2D canvas, resizing the window adapts the simulation instantly.
 
 Have fun exploring magnetic fluid art!
