@@ -1,0 +1,27 @@
+.
+├── build.js
+├── dist
+│   └── index.html
+├── FEATURES.md
+├── index.dev.html
+├── index.html
+├── README.md
+├── src
+│   ├── core
+│   │   ├── ferro-simulation.js
+│   │   ├── life-automaton.js
+│   │   ├── life-rule.js
+│   │   ├── magnet.js
+│   │   └── particle-system.js
+│   ├── game
+│   │   └── magnet-roundup.js
+│   ├── main.js
+│   ├── state
+│   │   └── default-state.js
+│   └── ui
+│       └── controls.js
+├── Structure.txt
+├── styles.css
+└── TODO.md
+
+7 directories, 18 files

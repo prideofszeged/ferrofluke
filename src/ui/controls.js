@@ -1,4 +1,9 @@
 import { defaultState } from '../state/default-state.js';
+import { InteractiveMode } from '../modes/interactive-mode.js';
+import { LifeMode } from '../modes/life-mode.js';
+import { GameMode } from '../modes/game-mode.js';
+import { ScreensaverMode } from '../modes/screensaver-mode.js';
+import { TabManager } from './tab-manager.js';
 
 function updateRangeTooltip(input, formatter = (value) => value) {
   if (!input) return;
@@ -27,6 +32,7 @@ export function setupControls(simulation) {
   const magnetFalloff = get('magnet-falloff');
   const magnetSize = get('magnet-size');
   const magnetColor = get('magnet-color');
+  const magnetEnabledToggle = get('magnet-enabled');
   const magnetAdd = get('magnet-add');
   const magnetReset = get('magnet-reset');
   const showFieldLines = get('show-field-lines');
@@ -48,14 +54,26 @@ export function setupControls(simulation) {
   const screensaverInterval = get('screensaver-interval');
   const screensaverRandomize = get('screensaver-randomize');
 
+  // Keep track of base modes for screensaver wrapping
+  let interactiveModeInstance = simulation.currentMode;
+  let lifeModeInstance = new LifeMode(simulation);
+
   const syncLifeToggleState = () => {
     if (!lifeMode) return;
-    lifeMode.checked = simulation.state.lifeMode;
+    const isLifeMode = simulation.currentMode?.name === 'life' ||
+                       simulation.currentMode?.wrappedMode?.name === 'life';
+    lifeMode.checked = isLifeMode;
     const particleControls = [particleCount, particleShape, particleGlow, particleSpeed];
     particleControls.forEach((input) => {
       if (!input) return;
-      input.disabled = simulation.state.lifeMode;
+      input.disabled = isLifeMode;
     });
+  };
+
+  const syncScreensaverToggleState = () => {
+    if (!screensaverEnabled) return;
+    const isScreensaver = simulation.currentMode?.name?.startsWith('screensaver');
+    screensaverEnabled.checked = isScreensaver;
   };
 
   const syncLifePresetSelector = () => {
@@ -115,6 +133,18 @@ export function setupControls(simulation) {
     });
   }
 
+  if (magnetEnabledToggle) {
+    magnetEnabledToggle.checked = simulation.state.magnetEnabled;
+    simulation.updateMagnetToggleUI = (enabled) => {
+      magnetEnabledToggle.checked = enabled;
+    };
+    magnetEnabledToggle.addEventListener('change', (event) => {
+      simulation.setState({ magnetEnabled: event.target.checked });
+    });
+  } else {
+    simulation.updateMagnetToggleUI = () => {};
+  }
+
   if (magnetStrength) {
     magnetStrength.value = simulation.state.magnetStrength;
     const formatter = (value) => `Strength ${value}`;
@@ -168,15 +198,28 @@ export function setupControls(simulation) {
   }
 
   if (screensaverEnabled) {
-    screensaverEnabled.checked = simulation.state.screensaverEnabled;
+    syncScreensaverToggleState();
     screensaverEnabled.addEventListener('change', (event) => {
-      simulation.setState({ screensaverEnabled: event.target.checked });
+      if (event.target.checked) {
+        // Wrap current mode in screensaver
+        const currentMode = simulation.currentMode;
+        const wrappedMode = currentMode?.wrappedMode ? currentMode.wrappedMode : currentMode;
+        const screensaver = new ScreensaverMode(simulation, wrappedMode);
+        simulation.setMode(screensaver);
+      } else {
+        // Unwrap to base mode
+        const baseMode = simulation.currentMode?.wrappedMode;
+        if (baseMode) {
+          simulation.setMode(baseMode);
+        }
+      }
+      syncScreensaverToggleState();
     });
   }
 
   if (screensaverDrift) {
     screensaverDrift.value = simulation.state.screensaverDrift;
-    const formatter = (value) => `${value} drift`; // simple tooltip
+    const formatter = (value) => `${value} drift`;
     updateRangeTooltip(screensaverDrift, formatter);
     screensaverDrift.addEventListener('input', (event) => {
       const value = Number(event.target.value);
@@ -187,7 +230,7 @@ export function setupControls(simulation) {
 
   if (screensaverInterval) {
     screensaverInterval.value = simulation.state.screensaverInterval;
-    const formatter = (value) => `${value}s`; // seconds
+    const formatter = (value) => `${value}s`;
     updateRangeTooltip(screensaverInterval, formatter);
     screensaverInterval.addEventListener('input', (event) => {
       const value = Number(event.target.value);
@@ -198,15 +241,44 @@ export function setupControls(simulation) {
 
   if (screensaverRandomize) {
     screensaverRandomize.addEventListener('click', () => {
-      simulation.randomizeScreensaver();
+      if (simulation.currentMode?.name?.startsWith('screensaver')) {
+        simulation.currentMode.randomize();
+      }
     });
   }
 
   if (lifeMode) {
     syncLifeToggleState();
     lifeMode.addEventListener('change', (event) => {
-      simulation.setState({ lifeMode: event.target.checked });
+      if (event.target.checked) {
+        // Check if currently in screensaver mode
+        const isScreensaver = simulation.currentMode?.name?.startsWith('screensaver');
+        if (isScreensaver) {
+          // Switch to Life mode wrapped in screensaver
+          lifeModeInstance = new LifeMode(simulation);
+          const screensaver = new ScreensaverMode(simulation, lifeModeInstance);
+          simulation.setMode(screensaver);
+        } else {
+          // Switch to Life mode directly
+          lifeModeInstance = new LifeMode(simulation);
+          simulation.setMode(lifeModeInstance);
+        }
+      } else {
+        // Switch back to Interactive mode
+        const isScreensaver = simulation.currentMode?.name?.startsWith('screensaver');
+        if (isScreensaver) {
+          // Switch to Interactive wrapped in screensaver
+          interactiveModeInstance = new InteractiveMode(simulation);
+          const screensaver = new ScreensaverMode(simulation, interactiveModeInstance);
+          simulation.setMode(screensaver);
+        } else {
+          // Switch to Interactive mode directly
+          interactiveModeInstance = new InteractiveMode(simulation);
+          simulation.setMode(interactiveModeInstance);
+        }
+      }
       syncLifeToggleState();
+      syncScreensaverToggleState();
     });
   }
 
@@ -315,6 +387,65 @@ export function setupControls(simulation) {
     resetParticlesButton.addEventListener('click', () => {
       simulation.resetParticles();
     });
+  }
+
+  // Initialize game mode
+  const gameMode = new GameMode(simulation);
+
+  // Bind game start button to activate game mode
+  const gameStartButton = document.querySelector('#game-start');
+  if (gameStartButton) {
+    gameStartButton.addEventListener('click', () => {
+      // Switch to game mode
+      const currentMode = simulation.currentMode;
+      const isScreensaver = currentMode?.name?.startsWith('screensaver');
+
+      // If in screensaver, unwrap first
+      if (isScreensaver) {
+        const baseMode = currentMode.wrappedMode;
+        simulation.setMode(baseMode);
+      }
+
+      // Create new game mode instance and switch to it
+      const newGameMode = new GameMode(simulation);
+      simulation.setMode(newGameMode);
+
+      // Override end button handler to return to interactive mode
+      const gameEndButton = document.querySelector('#game-end');
+      if (gameEndButton) {
+        const handleEndClick = () => {
+          // Return to interactive mode
+          interactiveModeInstance = new InteractiveMode(simulation);
+          simulation.setMode(interactiveModeInstance);
+          gameEndButton.removeEventListener('click', handleEndClick);
+        };
+        gameEndButton.addEventListener('click', handleEndClick);
+      }
+    });
+  }
+
+  // Initialize tab manager
+  const controlsSection = document.querySelector('.controls');
+  if (controlsSection) {
+    const tabManager = new TabManager(controlsSection);
+
+    // Auto-switch to Life tab when Life mode is toggled ON
+    if (lifeMode) {
+      lifeMode.addEventListener('change', (event) => {
+        if (event.target.checked) {
+          tabManager.switchTo('life');
+        }
+      });
+    }
+
+    // Auto-switch to Screensaver tab when Screensaver is toggled ON
+    if (screensaverEnabled) {
+      screensaverEnabled.addEventListener('change', (event) => {
+        if (event.target.checked) {
+          tabManager.switchTo('screensaver');
+        }
+      });
+    }
   }
 }
 

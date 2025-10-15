@@ -4,10 +4,11 @@ import { ParticleSystem } from './particle-system.js';
 import { LifeAutomaton } from './life-automaton.js';
 
 /**
- * Central simulation orchestrator: manages canvas, state, magnet, particles, and Life mode.
+ * Central simulation orchestrator: manages canvas, state, magnets, and mode switching.
+ * Delegates update/render logic to the current mode.
  */
 export class FerroSimulation {
-  constructor(canvas, initialState = {}) {
+  constructor(canvas, initialState = {}, initialMode = null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: true });
     this.state = { ...defaultState, ...initialState };
@@ -19,20 +20,18 @@ export class FerroSimulation {
     this.pointerDown = false;
     this.shiftPressed = false;
 
+    // Shared resources available to all modes
     this.magnets = [new Magnet()];
     this.activeMagnet = this.magnets[0];
     this.particles = new ParticleSystem();
     this.life = new LifeAutomaton();
     this.life.applyRule(this.state.lifeRule);
 
+    // Mode management
+    this.currentMode = initialMode;
+
     this.lastTimestamp = 0;
     this.running = false;
-    this.screensaver = {
-      active: this.state.screensaverEnabled,
-      elapsed: 0,
-      nextTransition: this.state.screensaverInterval,
-      driftSeeds: this.generateDriftSeeds(),
-    };
 
     this.loop = this.loop.bind(this);
     this.handlePointerDown = this.handlePointerDown.bind(this);
@@ -101,7 +100,8 @@ export class FerroSimulation {
 
     this.particles.setBounds(this.width, this.height);
 
-    if (this.state.lifeMode) {
+    // Ensure Life grid is sized correctly if in Life mode
+    if (this.currentMode && this.currentMode.name === 'life') {
       this.life.ensureGrid(this.state, this.width, this.height, true);
       if (!this.life.seeded) {
         this.life.randomize(0.42);
@@ -138,106 +138,26 @@ export class FerroSimulation {
     ctx.fillRect(0, 0, this.width, this.height);
     ctx.restore();
 
-    this.updateMagnets(dt);
-    if (this.state.lifeMode) {
-      this.life.update(dt, this.state, this.magnets, this.width, this.height);
-    } else {
-      this.particles.update(dt, this.state, this.magnets);
+    // Delegate to current mode for update and render
+    if (this.currentMode) {
+      this.currentMode.update(dt);
     }
+
     this.render();
   }
 
-  updateMagnets(dt) {
-    const driftEnabled = this.screensaver.active;
-    const driftSpeed = this.state.screensaverDrift;
-    this.magnets.forEach((magnet, index) => {
-      magnet.setShiftPressed(this.shiftPressed);
-      if (driftEnabled) {
-        const seeds = this.screensaver.driftSeeds[index % this.screensaver.driftSeeds.length];
-        const radius = seeds.radius * Math.min(this.width, this.height) * 0.5;
-        const speedX = driftSpeed * seeds.speedX;
-        const speedY = driftSpeed * seeds.speedY;
-        magnet.x = this.width * 0.5 + Math.cos(seeds.phaseX + this.screensaver.elapsed * speedX) * radius;
-        magnet.y = this.height * 0.5 + Math.sin(seeds.phaseY + this.screensaver.elapsed * speedY) * radius;
-        magnet.clamp(this.width, this.height, this.state.magnetSize);
-
-        if (seeds.flipInterval > 0 && this.screensaver.elapsed % seeds.flipInterval < dt) {
-          magnet.mode = magnet.mode > 0 ? -1 : 1;
-        }
-      }
-    });
-
-    if (driftEnabled) {
-      this.screensaver.elapsed += dt;
-      if (this.screensaver.elapsed >= this.screensaver.nextTransition) {
-        this.triggerScreensaverTransition();
-        this.screensaver.elapsed = 0;
-        this.screensaver.nextTransition = this.state.screensaverInterval;
-      }
-    }
-  }
-
   render() {
-    if (this.state.showFieldLines) {
-      this.drawFieldLines();
-    }
-    if (this.state.lifeMode) {
-      this.life.draw(this.ctx, this.state);
-    } else {
-      this.particles.draw(this.ctx, this.state);
-    }
-    this.drawMagnet();
-  }
-
-  drawFieldLines() {
     const ctx = this.ctx;
-    const color = this.state.fieldLineColor;
-    const radius = this.state.magnetSize;
-    const lines = 28;
-    const maxSteps = 96;
 
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.22;
+    // Delegate rendering to current mode
+    if (this.currentMode) {
+      this.currentMode.render(ctx);
+    }
 
-    this.magnets.forEach((magnet) => {
-      for (let i = 0; i < lines; i += 1) {
-        const angle = (i / lines) * Math.PI * 2;
-        let x = magnet.x + Math.cos(angle) * (radius + 4);
-        let y = magnet.y + Math.sin(angle) * (radius + 4);
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-
-        let stepX = x;
-        let stepY = y;
-        for (let s = 0; s < maxSteps; s += 1) {
-          const dx = magnet.x - stepX;
-          const dy = magnet.y - stepY;
-          const distSq = dx * dx + dy * dy + 0.0001;
-          const dist = Math.sqrt(distSq);
-          const normX = dx / dist;
-          const normY = dy / dist;
-          const force = this.state.magnetStrength * (radius / 18) * 50 / Math.pow(dist + radius, this.state.magnetFalloff + 0.3);
-
-          const tangentX = -normY;
-          const tangentY = normX;
-          const swirl = (18 + radius * 0.4) / (dist / 40 + 1);
-
-          stepX += (normX * force * magnet.mode * -0.02 + tangentX * swirl * 0.05);
-          stepY += (normY * force * magnet.mode * -0.02 + tangentY * swirl * 0.05);
-
-          if (stepX < -40 || stepX > this.width + 40 || stepY < -40 || stepY > this.height + 40) {
-            break;
-          }
-
-          ctx.lineTo(stepX, stepY);
-        }
-        ctx.stroke();
-      }
-    });
-    ctx.restore();
+    // Always draw magnets on top if enabled
+    if (this.state.magnetEnabled) {
+      this.drawMagnet();
+    }
   }
 
   drawMagnet() {
@@ -276,6 +196,13 @@ export class FerroSimulation {
   }
 
   handlePointerDown(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerDown(event)) {
+      return; // Mode handled it
+    }
+
+    // Default magnet control
+    if (!this.state.magnetEnabled) return;
     const pos = this.getPointerPosition(event);
     if (!pos) return;
     this.pointerDown = true;
@@ -291,6 +218,11 @@ export class FerroSimulation {
   }
 
   handlePointerUp(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerUp(event)) {
+      return;
+    }
+
     this.pointerDown = false;
     if (this.activeMagnet) {
       this.activeMagnet.endInteraction();
@@ -305,6 +237,12 @@ export class FerroSimulation {
   }
 
   handlePointerMove(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerMove(event)) {
+      return;
+    }
+
+    if (!this.state.magnetEnabled) return;
     if (!this.pointerDown || !this.activeMagnet) return;
     const pos = this.getPointerPosition(event);
     if (!pos) return;
@@ -312,6 +250,11 @@ export class FerroSimulation {
   }
 
   handlePointerLeave() {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerLeave()) {
+      return;
+    }
+
     this.pointerDown = false;
     if (this.activeMagnet) {
       this.activeMagnet.endInteraction();
@@ -319,13 +262,28 @@ export class FerroSimulation {
   }
 
   handleKeyDown(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handleKeyDown(event)) {
+      return;
+    }
+
     if (event.key === 'Shift') {
       this.shiftPressed = true;
       this.magnets.forEach((magnet) => magnet.setShiftPressed(true));
     }
+    if (typeof event.key === 'string' && event.key.toLowerCase() === 'm') {
+      if (this.isEventFromInteractiveElement(event)) return;
+      event.preventDefault();
+      this.toggleMagnetEnabled();
+    }
   }
 
   handleKeyUp(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handleKeyUp(event)) {
+      return;
+    }
+
     if (event.key === 'Shift') {
       this.shiftPressed = false;
       this.magnets.forEach((magnet) => magnet.setShiftPressed(false));
@@ -340,6 +298,27 @@ export class FerroSimulation {
       return null;
     }
     return { x, y };
+  }
+
+  /**
+   * Switch to a new simulation mode.
+   * @param {SimulationMode} newMode The mode to switch to
+   */
+  setMode(newMode) {
+    if (this.currentMode === newMode) return;
+
+    // Exit current mode
+    if (this.currentMode && this.currentMode.onExit) {
+      this.currentMode.onExit();
+    }
+
+    // Switch mode
+    this.currentMode = newMode;
+
+    // Enter new mode
+    if (this.currentMode && this.currentMode.onEnter) {
+      this.currentMode.onEnter();
+    }
   }
 
   /** Update global state and propagate side-effects. */
@@ -359,13 +338,13 @@ export class FerroSimulation {
       this.state.particleSpeed = Math.max(0.2, Math.min(3, partial.particleSpeed));
     }
 
+    if (partial.magnetEnabled !== undefined) {
+      this.setMagnetEnabled(Boolean(partial.magnetEnabled));
+    }
+
     if (partial.magnetSize !== undefined) {
       this.state.magnetSize = Math.max(10, Math.min(60, partial.magnetSize));
       this.magnets.forEach((magnet) => magnet.clamp(this.width, this.height, this.state.magnetSize));
-    }
-
-    if (partial.lifeMode !== undefined) {
-      this.setLifeMode(Boolean(partial.lifeMode));
     }
 
     if (partial.lifeSpeed !== undefined) {
@@ -374,7 +353,7 @@ export class FerroSimulation {
 
     if (partial.lifeCellSize !== undefined) {
       this.state.lifeCellSize = Math.max(6, Math.min(40, partial.lifeCellSize));
-      if (this.state.lifeMode) {
+      if (this.currentMode && this.currentMode.name === 'life') {
         this.life.ensureGrid(this.state, this.width, this.height, true);
       }
     }
@@ -396,16 +375,12 @@ export class FerroSimulation {
       this.state.lifeDeadColor = partial.lifeDeadColor;
     }
 
-    if (partial.screensaverEnabled !== undefined) {
-      this.setScreensaverEnabled(Boolean(partial.screensaverEnabled));
-    }
-
     if (partial.screensaverDrift !== undefined) {
-      this.setScreensaverDrift(Number(partial.screensaverDrift));
+      this.state.screensaverDrift = Math.max(0, Math.min(60, partial.screensaverDrift));
     }
 
     if (partial.screensaverInterval !== undefined) {
-      this.setScreensaverInterval(Number(partial.screensaverInterval));
+      this.state.screensaverInterval = Math.max(5, Math.min(120, partial.screensaverInterval));
     }
   }
 
@@ -420,18 +395,6 @@ export class FerroSimulation {
 
   clearLife() {
     this.life.clear();
-  }
-
-  setLifeMode(enabled) {
-    if (enabled === this.state.lifeMode) return;
-    this.state.lifeMode = enabled;
-    this.life.accumulator = 0;
-    if (enabled) {
-      this.life.ensureGrid(this.state, this.width, this.height, true);
-      if (!this.life.seeded) {
-        this.life.randomize(0.42);
-      }
-    }
   }
 
   addMagnet() {
@@ -473,97 +436,31 @@ export class FerroSimulation {
     return bestDist <= radius * 1.2 ? closest : null;
   }
 
-  setScreensaverEnabled(enabled) {
-    this.state.screensaverEnabled = enabled;
-    this.screensaver.active = enabled;
-    this.screensaver.elapsed = 0;
-    this.screensaver.nextTransition = this.state.screensaverInterval;
-    this.screensaver.driftSeeds = this.generateDriftSeeds();
-  }
-
-  setScreensaverDrift(value) {
-    this.state.screensaverDrift = Math.max(0, Math.min(60, value));
-  }
-
-  setScreensaverInterval(value) {
-    this.state.screensaverInterval = Math.max(5, Math.min(120, value));
-    this.screensaver.nextTransition = this.state.screensaverInterval;
-    this.screensaver.elapsed = 0;
-  }
-
-  triggerScreensaverTransition() {
-    const theme = FerroSimulation.pickRandomTheme();
-    this.setState({
-      particleColor: theme.particleColor,
-      magnetColor: theme.magnetColor,
-      fieldLineColor: theme.fieldColor,
-      particleGlow: theme.glow,
-    });
-    const root = document.documentElement;
-    root.style.setProperty('--accent', this.state.particleColor);
-    if (this.state.lifeMode && theme.lifeRule) {
-      this.setState({ lifeRule: theme.lifeRule });
+  setMagnetEnabled(enabled) {
+    const next = Boolean(enabled);
+    if (this.state.magnetEnabled === next) return;
+    this.state.magnetEnabled = next;
+    if (!next) {
+      this.pointerDown = false;
+      if (this.activeMagnet) {
+        this.activeMagnet.endInteraction();
+      }
+    }
+    if (this.updateMagnetToggleUI) {
+      this.updateMagnetToggleUI(next);
     }
   }
 
-  static pickRandomTheme() {
-    const themes = [
-      {
-        name: 'Solar Storm',
-        particleColor: '#ffb347',
-        magnetColor: '#ff4e50',
-        fieldColor: '#ffe29f',
-        glow: 22,
-        lifeRule: 'B36/S23',
-      },
-      {
-        name: 'Ethereal Lagoon',
-        particleColor: '#48d1cc',
-        magnetColor: '#00aaff',
-        fieldColor: '#a1f7ff',
-        glow: 18,
-        lifeRule: 'B3/S23',
-      },
-      {
-        name: 'Cyber Grid',
-        particleColor: '#9d60ff',
-        magnetColor: '#ff2bd6',
-        fieldColor: '#f7a1ff',
-        glow: 24,
-        lifeRule: 'B3678/S34678',
-      },
-      {
-        name: 'Aurora Drift',
-        particleColor: '#7fffb8',
-        magnetColor: '#3c91ff',
-        fieldColor: '#c9ffe5',
-        glow: 20,
-        lifeRule: 'B2/S',
-      },
-    ];
-    return themes[Math.floor(Math.random() * themes.length)];
+  toggleMagnetEnabled() {
+    this.setMagnetEnabled(!this.state.magnetEnabled);
   }
 
-  randomizeScreensaver() {
-    this.screensaver.elapsed = 0;
-    this.screensaver.nextTransition = this.state.screensaverInterval;
-    this.screensaver.driftSeeds = this.generateDriftSeeds();
-    this.triggerScreensaverTransition();
-  }
-
-  generateDriftSeeds() {
-    const count = Math.max(1, this.magnets.length);
-    const seeds = [];
-    for (let i = 0; i < count; i += 1) {
-      seeds.push({
-        phaseX: Math.random() * Math.PI * 2,
-        phaseY: Math.random() * Math.PI * 2,
-        speedX: 0.04 + Math.random() * 0.06,
-        speedY: 0.05 + Math.random() * 0.07,
-        radius: 0.25 + Math.random() * 0.35,
-        flipInterval: Math.random() > 0.7 ? 8 + Math.random() * 10 : 0,
-      });
+  isEventFromInteractiveElement(event) {
+    const target = event.target;
+    if (!target || !(target instanceof Element)) return false;
+    if (target.closest('input, select, textarea, button, [contenteditable="true"]')) {
+      return true;
     }
-    return seeds;
+    return false;
   }
 }

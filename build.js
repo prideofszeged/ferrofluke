@@ -16,6 +16,12 @@ const moduleOrder = [
   'src/core/magnet.js',
   'src/core/particle-system.js',
   'src/core/ferro-simulation.js',
+  'src/modes/simulation-mode.js',
+  'src/modes/interactive-mode.js',
+  'src/modes/life-mode.js',
+  'src/modes/game-mode.js',
+  'src/modes/screensaver-mode.js',
+  'src/ui/tab-manager.js',
   'src/ui/controls.js',
   'src/main.js',
 ];

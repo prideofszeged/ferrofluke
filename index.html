@@ -45,9 +45,69 @@ body {
   font-size: 1.6rem;
 }
 
+.controls > p {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding: 0.25rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 0.5rem 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+  transform: none;
+}
+
+.tab-button.active {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(30, 144, 255, 0.3);
+}
+
 .controls form {
+  display: block;
+}
+
+.tab-content {
+  display: none;
+  animation: fadeIn 0.2s ease;
+}
+
+.tab-content.active {
   display: grid;
   gap: 1rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 fieldset {
@@ -158,6 +218,77 @@ button:hover {
   background: transparent;
 }
 
+.game-hud {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 240px;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(8, 12, 20, 0.78);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 24px var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  opacity: 0.92;
+  transition: opacity 0.3s ease;
+  z-index: 3;
+}
+
+.game-hud.ready {
+  opacity: 1;
+}
+
+.game-hud .hud-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem 0.8rem;
+}
+
+.game-hud .hud-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.game-hud .hud-metric .label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.62;
+}
+
+.game-hud .hud-metric strong {
+  font-size: 1.08rem;
+  color: #f2faff;
+}
+
+.game-hud .hud-status {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+
+.game-hud button {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent), #58ffe2);
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.35);
+}
+
+.game-hud button:hover {
+  transform: translateY(-1px);
+}
+
+.game-hud button:active {
+  transform: translateY(0);
+}
+
 .hint {
   font-size: 0.8rem;
   opacity: 0.7;
@@ -176,6 +307,14 @@ button:hover {
   .canvas-wrapper {
     min-height: 70vh;
   }
+
+  .game-hud {
+    left: 50%;
+    right: auto;
+    top: 0.75rem;
+    transform: translateX(-50%);
+    width: min(320px, calc(100% - 2rem));
+  }
 }
 
 </style>
@@ -185,137 +324,216 @@ button:hover {
     <section class="controls">
       <h1>Ferrofluid Playground</h1>
       <p>Tweak the settings to create your own ferrofluid magnet show.</p>
+
+      <nav class="tab-nav">
+        <button class="tab-button active" data-tab-button="interactive">Interactive</button>
+        <button class="tab-button" data-tab-button="life">Life</button>
+        <button class="tab-button" data-tab-button="games">Games</button>
+        <button class="tab-button" data-tab-button="screensaver">Screensaver</button>
+      </nav>
+
       <form id="controls-form">
-        <fieldset>
-          <legend>Particles</legend>
-          <label title="Number of ferrofluid particles rendered each frame">
-            Count
-            <input type="range" id="particle-count" min="100" max="2000" step="50" value="700" />
-          </label>
-          <label title="Choose the geometric sprite used for each particle">
-            Shape
-            <select id="particle-shape">
-              <option value="circle">Circle</option>
-              <option value="square">Square</option>
-              <option value="triangle">Triangle</option>
-            </select>
-          </label>
-          <label title="Base colour tint applied to all particles">
-            Base Color
-            <input type="color" id="particle-color" value="#1e90ff" />
-          </label>
-          <label title="Halo size around each particle">
-            Glow
-            <input type="range" id="particle-glow" min="0" max="40" value="12" />
-          </label>
-          <label title="Overall movement speed for the particle swarm">
-            Particle Speed
-            <input type="range" id="particle-speed" min="0.2" max="3" step="0.05" value="1" />
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Magnet</legend>
-          <label title="Strength of the magnetic attraction or repulsion">
-            Strength
-            <input type="range" id="magnet-strength" min="50" max="600" value="220" />
-          </label>
-          <label title="Controls how quickly the field weakens with distance">
-            Falloff
-            <input type="range" id="magnet-falloff" min="0.5" max="4" step="0.1" value="1.6" />
-          </label>
-          <label title="Radius of the magnet indicator and influence bubble">
-            Magnet Size
-            <input type="range" id="magnet-size" min="10" max="60" step="1" value="22" />
-          </label>
-          <label title="Colour accent for the magnet indicator">
-            Magnet Color
-            <input type="color" id="magnet-color" value="#ff4500" />
-          </label>
-          <div class="button-row">
-            <button type="button" id="magnet-add" title="Drop an extra magnet at the centre">Add Magnet</button>
-            <button type="button" id="magnet-reset" title="Remove extra magnets and return to one">Reset Magnets</button>
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Field Lines</legend>
-          <label class="checkbox" title="Toggle visualisation of magnetic field lines">
-            <input type="checkbox" id="show-field-lines" checked />
-            Show field lines
-          </label>
-          <label title="Colour applied to the field line trails">
-            Line Color
-            <input type="color" id="field-line-color" value="#ffffff" />
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Game of Life</legend>
-          <label class="checkbox" title="Switch to a Game of Life cellular automaton simulation">
-            <input type="checkbox" id="life-mode" />
-            Enable Life mode
-          </label>
-          <label title="How many Life generations update every second">
-            Life Speed
-            <input type="range" id="life-speed" min="1" max="30" value="10" />
-          </label>
-          <label title="Pixel size of each Life cell">
-            Cell Size
-            <input type="range" id="life-cell-size" min="6" max="40" value="16" />
-          </label>
-          <label title="Birth/survival rule in B/S format (e.g. B3/S23)">
-            Rule
-            <input type="text" id="life-rule" value="B3/S23" />
-          </label>
-          <label title="Quickly apply a popular Life-like rule">
-            Preset
-            <select id="life-preset">
-              <option value="custom">Custom (keep current)</option>
-              <option value="B3/S23">Classic Life (B3/S23)</option>
-              <option value="B36/S23">HighLife (B36/S23)</option>
-              <option value="B2/S">Seeds (B2/S)</option>
-              <option value="B3678/S34678">Day & Night (B3678/S34678)</option>
-              <option value="B1357/S1357">Replicator (B1357/S1357)</option>
-              <option value="B3/S012345678">Life Without Death (B3/S012345678)</option>
-            </select>
-          </label>
-          <label title="How strongly the magnet biases Life cells when nearby">
-            Magnet Influence
-            <input type="range" id="life-magnet-bias" min="0" max="1" step="0.05" value="0.4" />
-          </label>
-          <label title="Colour used for alive Life cells">
-            Alive Colour
-            <input type="color" id="life-alive-color" value="#1e90ff" />
-          </label>
-          <label title="Colour used for dead Life cells">
-            Dead Colour
-            <input type="color" id="life-dead-color" value="#0b1020" />
-          </label>
-          <div class="button-row">
-            <button type="button" id="life-randomize" title="Reseed Life grid with a random pattern">Randomize Life</button>
-            <button type="button" id="life-clear" title="Clear all Life cells">Clear Life</button>
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>Screensaver</legend>
-          <label class="checkbox" title="Toggle autonomous magnet drift and palette shifts">
-            <input type="checkbox" id="screensaver-enabled" />
-            Enable screensaver mode
-          </label>
-          <label title="Speed at which magnets drift while screensaver is active">
-            Drift Speed
-            <input type="range" id="screensaver-drift" min="0" max="40" value="14" />
-          </label>
-          <label title="Seconds between automatic preset swaps">
-            Preset Interval (s)
-            <input type="range" id="screensaver-interval" min="5" max="60" value="20" />
-          </label>
-          <button type="button" id="screensaver-randomize" title="Randomize magnet drift phases and pick a fresh theme">Shuffle Screensaver</button>
-        </fieldset>
-        <button type="button" id="reset-button" title="Respawn the particle swarm">Reset particles</button>
+        <!-- Interactive Tab -->
+        <div class="tab-content active" data-tab-content="interactive">
+          <fieldset>
+            <legend>Particles</legend>
+            <label title="Number of ferrofluid particles rendered each frame">
+              Count
+              <input type="range" id="particle-count" min="100" max="2000" step="50" value="700" />
+            </label>
+            <label title="Choose the geometric sprite used for each particle">
+              Shape
+              <select id="particle-shape">
+                <option value="circle">Circle</option>
+                <option value="square">Square</option>
+                <option value="triangle">Triangle</option>
+              </select>
+            </label>
+            <label title="Base colour tint applied to all particles">
+              Base Color
+              <input type="color" id="particle-color" value="#1e90ff" />
+            </label>
+            <label title="Halo size around each particle">
+              Glow
+              <input type="range" id="particle-glow" min="0" max="40" value="12" />
+            </label>
+            <label title="Overall movement speed for the particle swarm">
+              Particle Speed
+              <input type="range" id="particle-speed" min="0.2" max="3" step="0.05" value="1" />
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Magnet</legend>
+            <label class="checkbox" title="Toggle magnet influence (shortcut: M)">
+              <input type="checkbox" id="magnet-enabled" checked />
+              Enable magnet (press M)
+            </label>
+            <label title="Strength of the magnetic attraction or repulsion">
+              Strength
+              <input type="range" id="magnet-strength" min="50" max="600" value="220" />
+            </label>
+            <label title="Controls how quickly the field weakens with distance">
+              Falloff
+              <input type="range" id="magnet-falloff" min="0.5" max="4" step="0.1" value="1.6" />
+            </label>
+            <label title="Radius of the magnet indicator and influence bubble">
+              Magnet Size
+              <input type="range" id="magnet-size" min="10" max="60" step="1" value="22" />
+            </label>
+            <label title="Colour accent for the magnet indicator">
+              Magnet Color
+              <input type="color" id="magnet-color" value="#ff4500" />
+            </label>
+            <div class="button-row">
+              <button type="button" id="magnet-add" title="Drop an extra magnet at the centre">Add Magnet</button>
+              <button type="button" id="magnet-reset" title="Remove extra magnets and return to one">Reset Magnets</button>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Field Lines</legend>
+            <label class="checkbox" title="Toggle visualisation of magnetic field lines">
+              <input type="checkbox" id="show-field-lines" checked />
+              Show field lines
+            </label>
+            <label title="Colour applied to the field line trails">
+              Line Color
+              <input type="color" id="field-line-color" value="#ffffff" />
+            </label>
+          </fieldset>
+          <button type="button" id="reset-button" title="Respawn the particle swarm">Reset particles</button>
+          <p class="hint">Click or drag to move the magnet. Hold <kbd>Shift</kbd> to repel.</p>
+        </div>
+
+        <!-- Life Tab -->
+        <div class="tab-content" data-tab-content="life">
+          <fieldset>
+            <legend>Game of Life</legend>
+            <label class="checkbox" title="Switch to a Game of Life cellular automaton simulation">
+              <input type="checkbox" id="life-mode" />
+              Enable Life mode
+            </label>
+            <label title="How many Life generations update every second">
+              Life Speed
+              <input type="range" id="life-speed" min="1" max="30" value="10" />
+            </label>
+            <label title="Pixel size of each Life cell">
+              Cell Size
+              <input type="range" id="life-cell-size" min="6" max="40" value="16" />
+            </label>
+            <label title="Birth/survival rule in B/S format (e.g. B3/S23)">
+              Rule
+              <input type="text" id="life-rule" value="B3/S23" />
+            </label>
+            <label title="Quickly apply a popular Life-like rule">
+              Preset
+              <select id="life-preset">
+                <option value="custom">Custom (keep current)</option>
+                <option value="B3/S23">Classic Life (B3/S23)</option>
+                <option value="B36/S23">HighLife (B36/S23)</option>
+                <option value="B2/S">Seeds (B2/S)</option>
+                <option value="B3678/S34678">Day & Night (B3678/S34678)</option>
+                <option value="B1357/S1357">Replicator (B1357/S1357)</option>
+                <option value="B3/S012345678">Life Without Death (B3/S012345678)</option>
+              </select>
+            </label>
+            <label title="How strongly the magnet biases Life cells when nearby">
+              Magnet Influence
+              <input type="range" id="life-magnet-bias" min="0" max="1" step="0.05" value="0.4" />
+            </label>
+            <label title="Colour used for alive Life cells">
+              Alive Colour
+              <input type="color" id="life-alive-color" value="#1e90ff" />
+            </label>
+            <label title="Colour used for dead Life cells">
+              Dead Colour
+              <input type="color" id="life-dead-color" value="#0b1020" />
+            </label>
+            <div class="button-row">
+              <button type="button" id="life-randomize" title="Reseed Life grid with a random pattern">Randomize Life</button>
+              <button type="button" id="life-clear" title="Clear all Life cells">Clear Life</button>
+            </div>
+          </fieldset>
+          <p class="hint">Life mode uses a cellular automaton where magnets influence cell birth probability.</p>
+        </div>
+
+        <!-- Games Tab -->
+        <div class="tab-content" data-tab-content="games">
+          <fieldset>
+            <legend>Magnet Roundup</legend>
+            <p style="margin: 0 0 0.75rem; font-size: 0.85rem; line-height: 1.4; opacity: 0.85;">
+              Herd particles into the glowing ring before time runs out. Golden particles give bonus points!
+            </p>
+            <button type="button" id="game-start" style="width: 100%; font-size: 0.95rem; padding: 0.75rem;">Start Magnet Roundup</button>
+            <div class="game-stats" style="margin-top: 1rem; padding: 0.75rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem;">
+                <div>
+                  <div style="opacity: 0.6; font-size: 0.75rem;">Best Score</div>
+                  <div style="font-weight: 600; font-size: 1.1rem;" data-role="best-score-display">0</div>
+                </div>
+                <div>
+                  <div style="opacity: 0.6; font-size: 0.75rem;">Top Streak</div>
+                  <div style="font-weight: 600; font-size: 1.1rem;" data-role="top-streak-display">0</div>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+          <p class="hint">More mini-games coming soon!</p>
+        </div>
+
+        <!-- Screensaver Tab -->
+        <div class="tab-content" data-tab-content="screensaver">
+          <fieldset>
+            <legend>Screensaver</legend>
+            <label class="checkbox" title="Toggle autonomous magnet drift and palette shifts">
+              <input type="checkbox" id="screensaver-enabled" />
+              Enable screensaver mode
+            </label>
+            <label title="Speed at which magnets drift while screensaver is active">
+              Drift Speed
+              <input type="range" id="screensaver-drift" min="0" max="40" value="14" />
+            </label>
+            <label title="Seconds between automatic preset swaps">
+              Preset Interval (s)
+              <input type="range" id="screensaver-interval" min="5" max="60" value="20" />
+            </label>
+            <button type="button" id="screensaver-randomize" title="Randomize magnet drift phases and pick a fresh theme">Shuffle Screensaver</button>
+          </fieldset>
+          <p class="hint">Screensaver mode makes magnets drift autonomously and cycles through visual themes.</p>
+        </div>
       </form>
-      <p class="hint">Click or drag to move the magnet. Hold <kbd>Shift</kbd> to repel.</p>
     </section>
     <section class="canvas-wrapper">
       <canvas id="ferro-canvas"></canvas>
+      <div id="game-hud" class="game-hud" style="display: none;">
+        <div class="hud-grid">
+          <div class="hud-metric">
+            <span class="label">Score</span>
+            <strong data-role="score">0</strong>
+          </div>
+          <div class="hud-metric">
+            <span class="label">Best</span>
+            <strong data-role="best">0</strong>
+          </div>
+          <div class="hud-metric">
+            <span class="label">Streak</span>
+            <strong data-role="streak">0</strong>
+          </div>
+          <div class="hud-metric">
+            <span class="label">Top Streak</span>
+            <strong data-role="top-streak">0</strong>
+          </div>
+          <div class="hud-metric">
+            <span class="label">Timer</span>
+            <strong data-role="timer">--</strong>
+          </div>
+          <div class="hud-metric hud-progress">
+            <span class="label">Goal</span>
+            <strong data-role="target">0/0</strong>
+          </div>
+        </div>
+        <p class="hud-status" data-role="status"></p>
+        <button type="button" id="game-end" style="padding: 0.4rem 0.85rem; font-size: 0.85rem;">End Game</button>
+      </div>
     </section>
   </main>
   <script>
@@ -326,6 +544,7 @@ const defaultState = {
   particleShape: 'circle',
   particleGlow: 12,
   particleSpeed: 1,
+  magnetEnabled: true,
   magnetStrength: 220,
   magnetFalloff: 1.6,
   magnetSize: 22,
@@ -799,6 +1018,19 @@ class ParticleSystem {
           ctx.fill();
       }
       ctx.restore();
+
+      if (p.golden) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffd760';
+        ctx.lineWidth = 1.3;
+        ctx.shadowColor = '#ffe89a';
+        ctx.shadowBlur = Math.max(16, state.particleGlow + 6);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     ctx.restore();
@@ -815,15 +1047,17 @@ class ParticleSystem {
       noise: Math.random() * Math.PI * 2,
       rotation: Math.random() * Math.PI * 2,
       spin: (Math.random() - 0.5) * 2,
+      golden: false,
     };
   }
 }
 
 /**
- * Central simulation orchestrator: manages canvas, state, magnet, particles, and Life mode.
+ * Central simulation orchestrator: manages canvas, state, magnets, and mode switching.
+ * Delegates update/render logic to the current mode.
  */
 class FerroSimulation {
-  constructor(canvas, initialState = {}) {
+  constructor(canvas, initialState = {}, initialMode = null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: true });
     this.state = { ...defaultState, ...initialState };
@@ -835,20 +1069,18 @@ class FerroSimulation {
     this.pointerDown = false;
     this.shiftPressed = false;
 
+    // Shared resources available to all modes
     this.magnets = [new Magnet()];
     this.activeMagnet = this.magnets[0];
     this.particles = new ParticleSystem();
     this.life = new LifeAutomaton();
     this.life.applyRule(this.state.lifeRule);
 
+    // Mode management
+    this.currentMode = initialMode;
+
     this.lastTimestamp = 0;
     this.running = false;
-    this.screensaver = {
-      active: this.state.screensaverEnabled,
-      elapsed: 0,
-      nextTransition: this.state.screensaverInterval,
-      driftSeeds: this.generateDriftSeeds(),
-    };
 
     this.loop = this.loop.bind(this);
     this.handlePointerDown = this.handlePointerDown.bind(this);
@@ -917,7 +1149,8 @@ class FerroSimulation {
 
     this.particles.setBounds(this.width, this.height);
 
-    if (this.state.lifeMode) {
+    // Ensure Life grid is sized correctly if in Life mode
+    if (this.currentMode && this.currentMode.name === 'life') {
       this.life.ensureGrid(this.state, this.width, this.height, true);
       if (!this.life.seeded) {
         this.life.randomize(0.42);
@@ -954,106 +1187,26 @@ class FerroSimulation {
     ctx.fillRect(0, 0, this.width, this.height);
     ctx.restore();
 
-    this.updateMagnets(dt);
-    if (this.state.lifeMode) {
-      this.life.update(dt, this.state, this.magnets, this.width, this.height);
-    } else {
-      this.particles.update(dt, this.state, this.magnets);
+    // Delegate to current mode for update and render
+    if (this.currentMode) {
+      this.currentMode.update(dt);
     }
+
     this.render();
   }
 
-  updateMagnets(dt) {
-    const driftEnabled = this.screensaver.active;
-    const driftSpeed = this.state.screensaverDrift;
-    this.magnets.forEach((magnet, index) => {
-      magnet.setShiftPressed(this.shiftPressed);
-      if (driftEnabled) {
-        const seeds = this.screensaver.driftSeeds[index % this.screensaver.driftSeeds.length];
-        const radius = seeds.radius * Math.min(this.width, this.height) * 0.5;
-        const speedX = driftSpeed * seeds.speedX;
-        const speedY = driftSpeed * seeds.speedY;
-        magnet.x = this.width * 0.5 + Math.cos(seeds.phaseX + this.screensaver.elapsed * speedX) * radius;
-        magnet.y = this.height * 0.5 + Math.sin(seeds.phaseY + this.screensaver.elapsed * speedY) * radius;
-        magnet.clamp(this.width, this.height, this.state.magnetSize);
-
-        if (seeds.flipInterval > 0 && this.screensaver.elapsed % seeds.flipInterval < dt) {
-          magnet.mode = magnet.mode > 0 ? -1 : 1;
-        }
-      }
-    });
-
-    if (driftEnabled) {
-      this.screensaver.elapsed += dt;
-      if (this.screensaver.elapsed >= this.screensaver.nextTransition) {
-        this.triggerScreensaverTransition();
-        this.screensaver.elapsed = 0;
-        this.screensaver.nextTransition = this.state.screensaverInterval;
-      }
-    }
-  }
-
   render() {
-    if (this.state.showFieldLines) {
-      this.drawFieldLines();
-    }
-    if (this.state.lifeMode) {
-      this.life.draw(this.ctx, this.state);
-    } else {
-      this.particles.draw(this.ctx, this.state);
-    }
-    this.drawMagnet();
-  }
-
-  drawFieldLines() {
     const ctx = this.ctx;
-    const color = this.state.fieldLineColor;
-    const radius = this.state.magnetSize;
-    const lines = 28;
-    const maxSteps = 96;
 
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.22;
+    // Delegate rendering to current mode
+    if (this.currentMode) {
+      this.currentMode.render(ctx);
+    }
 
-    this.magnets.forEach((magnet) => {
-      for (let i = 0; i < lines; i += 1) {
-        const angle = (i / lines) * Math.PI * 2;
-        let x = magnet.x + Math.cos(angle) * (radius + 4);
-        let y = magnet.y + Math.sin(angle) * (radius + 4);
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-
-        let stepX = x;
-        let stepY = y;
-        for (let s = 0; s < maxSteps; s += 1) {
-          const dx = magnet.x - stepX;
-          const dy = magnet.y - stepY;
-          const distSq = dx * dx + dy * dy + 0.0001;
-          const dist = Math.sqrt(distSq);
-          const normX = dx / dist;
-          const normY = dy / dist;
-          const force = this.state.magnetStrength * (radius / 18) * 50 / Math.pow(dist + radius, this.state.magnetFalloff + 0.3);
-
-          const tangentX = -normY;
-          const tangentY = normX;
-          const swirl = (18 + radius * 0.4) / (dist / 40 + 1);
-
-          stepX += (normX * force * magnet.mode * -0.02 + tangentX * swirl * 0.05);
-          stepY += (normY * force * magnet.mode * -0.02 + tangentY * swirl * 0.05);
-
-          if (stepX < -40 || stepX > this.width + 40 || stepY < -40 || stepY > this.height + 40) {
-            break;
-          }
-
-          ctx.lineTo(stepX, stepY);
-        }
-        ctx.stroke();
-      }
-    });
-    ctx.restore();
+    // Always draw magnets on top if enabled
+    if (this.state.magnetEnabled) {
+      this.drawMagnet();
+    }
   }
 
   drawMagnet() {
@@ -1092,6 +1245,13 @@ class FerroSimulation {
   }
 
   handlePointerDown(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerDown(event)) {
+      return; // Mode handled it
+    }
+
+    // Default magnet control
+    if (!this.state.magnetEnabled) return;
     const pos = this.getPointerPosition(event);
     if (!pos) return;
     this.pointerDown = true;
@@ -1107,6 +1267,11 @@ class FerroSimulation {
   }
 
   handlePointerUp(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerUp(event)) {
+      return;
+    }
+
     this.pointerDown = false;
     if (this.activeMagnet) {
       this.activeMagnet.endInteraction();
@@ -1121,6 +1286,12 @@ class FerroSimulation {
   }
 
   handlePointerMove(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerMove(event)) {
+      return;
+    }
+
+    if (!this.state.magnetEnabled) return;
     if (!this.pointerDown || !this.activeMagnet) return;
     const pos = this.getPointerPosition(event);
     if (!pos) return;
@@ -1128,6 +1299,11 @@ class FerroSimulation {
   }
 
   handlePointerLeave() {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handlePointerLeave()) {
+      return;
+    }
+
     this.pointerDown = false;
     if (this.activeMagnet) {
       this.activeMagnet.endInteraction();
@@ -1135,13 +1311,28 @@ class FerroSimulation {
   }
 
   handleKeyDown(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handleKeyDown(event)) {
+      return;
+    }
+
     if (event.key === 'Shift') {
       this.shiftPressed = true;
       this.magnets.forEach((magnet) => magnet.setShiftPressed(true));
     }
+    if (typeof event.key === 'string' && event.key.toLowerCase() === 'm') {
+      if (this.isEventFromInteractiveElement(event)) return;
+      event.preventDefault();
+      this.toggleMagnetEnabled();
+    }
   }
 
   handleKeyUp(event) {
+    // Let mode handle event first
+    if (this.currentMode && this.currentMode.handleKeyUp(event)) {
+      return;
+    }
+
     if (event.key === 'Shift') {
       this.shiftPressed = false;
       this.magnets.forEach((magnet) => magnet.setShiftPressed(false));
@@ -1156,6 +1347,27 @@ class FerroSimulation {
       return null;
     }
     return { x, y };
+  }
+
+  /**
+   * Switch to a new simulation mode.
+   * @param {SimulationMode} newMode The mode to switch to
+   */
+  setMode(newMode) {
+    if (this.currentMode === newMode) return;
+
+    // Exit current mode
+    if (this.currentMode && this.currentMode.onExit) {
+      this.currentMode.onExit();
+    }
+
+    // Switch mode
+    this.currentMode = newMode;
+
+    // Enter new mode
+    if (this.currentMode && this.currentMode.onEnter) {
+      this.currentMode.onEnter();
+    }
   }
 
   /** Update global state and propagate side-effects. */
@@ -1175,13 +1387,13 @@ class FerroSimulation {
       this.state.particleSpeed = Math.max(0.2, Math.min(3, partial.particleSpeed));
     }
 
+    if (partial.magnetEnabled !== undefined) {
+      this.setMagnetEnabled(Boolean(partial.magnetEnabled));
+    }
+
     if (partial.magnetSize !== undefined) {
       this.state.magnetSize = Math.max(10, Math.min(60, partial.magnetSize));
       this.magnets.forEach((magnet) => magnet.clamp(this.width, this.height, this.state.magnetSize));
-    }
-
-    if (partial.lifeMode !== undefined) {
-      this.setLifeMode(Boolean(partial.lifeMode));
     }
 
     if (partial.lifeSpeed !== undefined) {
@@ -1190,7 +1402,7 @@ class FerroSimulation {
 
     if (partial.lifeCellSize !== undefined) {
       this.state.lifeCellSize = Math.max(6, Math.min(40, partial.lifeCellSize));
-      if (this.state.lifeMode) {
+      if (this.currentMode && this.currentMode.name === 'life') {
         this.life.ensureGrid(this.state, this.width, this.height, true);
       }
     }
@@ -1212,16 +1424,12 @@ class FerroSimulation {
       this.state.lifeDeadColor = partial.lifeDeadColor;
     }
 
-    if (partial.screensaverEnabled !== undefined) {
-      this.setScreensaverEnabled(Boolean(partial.screensaverEnabled));
-    }
-
     if (partial.screensaverDrift !== undefined) {
-      this.setScreensaverDrift(Number(partial.screensaverDrift));
+      this.state.screensaverDrift = Math.max(0, Math.min(60, partial.screensaverDrift));
     }
 
     if (partial.screensaverInterval !== undefined) {
-      this.setScreensaverInterval(Number(partial.screensaverInterval));
+      this.state.screensaverInterval = Math.max(5, Math.min(120, partial.screensaverInterval));
     }
   }
 
@@ -1236,18 +1444,6 @@ class FerroSimulation {
 
   clearLife() {
     this.life.clear();
-  }
-
-  setLifeMode(enabled) {
-    if (enabled === this.state.lifeMode) return;
-    this.state.lifeMode = enabled;
-    this.life.accumulator = 0;
-    if (enabled) {
-      this.life.ensureGrid(this.state, this.width, this.height, true);
-      if (!this.life.seeded) {
-        this.life.randomize(0.42);
-      }
-    }
   }
 
   addMagnet() {
@@ -1289,36 +1485,851 @@ class FerroSimulation {
     return bestDist <= radius * 1.2 ? closest : null;
   }
 
-  setScreensaverEnabled(enabled) {
-    this.state.screensaverEnabled = enabled;
-    this.screensaver.active = enabled;
-    this.screensaver.elapsed = 0;
-    this.screensaver.nextTransition = this.state.screensaverInterval;
-    this.screensaver.driftSeeds = this.generateDriftSeeds();
+  setMagnetEnabled(enabled) {
+    const next = Boolean(enabled);
+    if (this.state.magnetEnabled === next) return;
+    this.state.magnetEnabled = next;
+    if (!next) {
+      this.pointerDown = false;
+      if (this.activeMagnet) {
+        this.activeMagnet.endInteraction();
+      }
+    }
+    if (this.updateMagnetToggleUI) {
+      this.updateMagnetToggleUI(next);
+    }
   }
 
-  setScreensaverDrift(value) {
-    this.state.screensaverDrift = Math.max(0, Math.min(60, value));
+  toggleMagnetEnabled() {
+    this.setMagnetEnabled(!this.state.magnetEnabled);
   }
 
-  setScreensaverInterval(value) {
-    this.state.screensaverInterval = Math.max(5, Math.min(120, value));
-    this.screensaver.nextTransition = this.state.screensaverInterval;
-    this.screensaver.elapsed = 0;
+  isEventFromInteractiveElement(event) {
+    const target = event.target;
+    if (!target || !(target instanceof Element)) return false;
+    if (target.closest('input, select, textarea, button, [contenteditable="true"]')) {
+      return true;
+    }
+    return false;
+  }
+}
+
+/**
+ * Base class for simulation modes.
+ * Each mode encapsulates specific update logic, rendering, and event handling.
+ */
+class SimulationMode {
+  constructor(simulation) {
+    this.simulation = simulation;
+  }
+
+  /**
+   * Called when this mode becomes active.
+   * Use this for initialization and setup.
+   */
+  onEnter() {}
+
+  /**
+   * Called when switching away from this mode.
+   * Use this for cleanup.
+   */
+  onExit() {}
+
+  /**
+   * Update simulation state for this mode.
+   * @param {number} dt Delta time in seconds
+   */
+  update(dt) {}
+
+  /**
+   * Render mode-specific visuals.
+   * @param {CanvasRenderingContext2D} ctx Canvas context
+   */
+  render(ctx) {}
+
+  /**
+   * Handle pointer down event.
+   * @param {PointerEvent} event
+   * @returns {boolean} True if event was handled and should stop propagation
+   */
+  handlePointerDown(event) {
+    return false;
+  }
+
+  /**
+   * Handle pointer move event.
+   * @param {PointerEvent} event
+   * @returns {boolean} True if event was handled and should stop propagation
+   */
+  handlePointerMove(event) {
+    return false;
+  }
+
+  /**
+   * Handle pointer up event.
+   * @param {PointerEvent} event
+   * @returns {boolean} True if event was handled and should stop propagation
+   */
+  handlePointerUp(event) {
+    return false;
+  }
+
+  /**
+   * Handle pointer leave event.
+   * @returns {boolean} True if event was handled and should stop propagation
+   */
+  handlePointerLeave() {
+    return false;
+  }
+
+  /**
+   * Handle key down event.
+   * @param {KeyboardEvent} event
+   * @returns {boolean} True if event was handled and should stop propagation
+   */
+  handleKeyDown(event) {
+    return false;
+  }
+
+  /**
+   * Handle key up event.
+   * @param {KeyboardEvent} event
+   * @returns {boolean} True if event was handled and should stop propagation
+   */
+  handleKeyUp(event) {
+    return false;
+  }
+
+  /**
+   * Mode identifier for logging and debugging.
+   * @returns {string}
+   */
+  get name() {
+    return 'base';
+  }
+
+  /**
+   * Whether this mode allows manual magnet control via pointer.
+   * @returns {boolean}
+   */
+  get allowsMagnetControl() {
+    return true;
+  }
+
+  /**
+   * Whether this mode can be wrapped with screensaver mode.
+   * @returns {boolean}
+   */
+  get allowsScreensaver() {
+    return true;
+  }
+}
+
+/**
+ * Interactive particle mode with manual magnet control.
+ * Users can click and drag magnets to affect the ferrofluid particles.
+ */
+class InteractiveMode extends SimulationMode {
+  constructor(simulation) {
+    super(simulation);
+  }
+
+  update(dt) {
+    const { particles, magnets, state } = this.simulation;
+    const activeMagnets = state.magnetEnabled ? magnets : [];
+    particles.update(dt, state, activeMagnets);
+  }
+
+  render(ctx) {
+    const { state, particles } = this.simulation;
+
+    // Draw field lines if enabled
+    if (state.showFieldLines && state.magnetEnabled) {
+      this.drawFieldLines(ctx);
+    }
+
+    // Draw particles
+    particles.draw(ctx, state);
+  }
+
+  drawFieldLines(ctx) {
+    const { magnets, state, width, height } = this.simulation;
+    const color = state.fieldLineColor;
+    const radius = state.magnetSize;
+    const lines = 28;
+    const maxSteps = 96;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.22;
+
+    magnets.forEach((magnet) => {
+      for (let i = 0; i < lines; i += 1) {
+        const angle = (i / lines) * Math.PI * 2;
+        let x = magnet.x + Math.cos(angle) * (radius + 4);
+        let y = magnet.y + Math.sin(angle) * (radius + 4);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+
+        let stepX = x;
+        let stepY = y;
+        for (let s = 0; s < maxSteps; s += 1) {
+          const dx = magnet.x - stepX;
+          const dy = magnet.y - stepY;
+          const distSq = dx * dx + dy * dy + 0.0001;
+          const dist = Math.sqrt(distSq);
+          const normX = dx / dist;
+          const normY = dy / dist;
+          const force = state.magnetStrength * (radius / 18) * 50 / Math.pow(dist + radius, state.magnetFalloff + 0.3);
+
+          const tangentX = -normY;
+          const tangentY = normX;
+          const swirl = (18 + radius * 0.4) / (dist / 40 + 1);
+
+          stepX += (normX * force * magnet.mode * -0.02 + tangentX * swirl * 0.05);
+          stepY += (normY * force * magnet.mode * -0.02 + tangentY * swirl * 0.05);
+
+          if (stepX < -40 || stepX > width + 40 || stepY < -40 || stepY > height + 40) {
+            break;
+          }
+
+          ctx.lineTo(stepX, stepY);
+        }
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+
+  get name() {
+    return 'interactive';
+  }
+}
+
+/**
+ * Game of Life cellular automaton mode with manual magnet control.
+ * Magnets can influence cell birth probability based on proximity.
+ */
+class LifeMode extends SimulationMode {
+  constructor(simulation) {
+    super(simulation);
+  }
+
+  onEnter() {
+    const { life, state, width, height } = this.simulation;
+    life.accumulator = 0;
+    life.ensureGrid(state, width, height, true);
+    if (!life.seeded) {
+      life.randomize(0.42);
+    }
+  }
+
+  update(dt) {
+    const { life, magnets, state, width, height } = this.simulation;
+    const activeMagnets = state.magnetEnabled ? magnets : [];
+    life.update(dt, state, activeMagnets, width, height);
+  }
+
+  render(ctx) {
+    const { life, state } = this.simulation;
+    life.draw(ctx, state);
+  }
+
+  get name() {
+    return 'life';
+  }
+}
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const SCORE_PER_PARTICLE = 5;
+const GOLDEN_BONUS = 20;
+
+/**
+ * Magnet Roundup game mode.
+ * Extends InteractiveMode to add scoring ring and particle herding mechanics.
+ */
+class GameMode extends InteractiveMode {
+  constructor(simulation, options = {}) {
+    super(simulation);
+
+    this.options = {
+      baseThreshold: options.baseThreshold ?? 60,
+      baseTime: options.baseTime ?? 24,
+      baseRadius: options.baseRadius ?? 120,
+    };
+
+    this.goal = null;
+    this.round = 0;
+    this.score = 0;
+    this.bestScore = 0;
+    this.streak = 0;
+    this.topStreak = 0;
+    this.timeRemaining = 0;
+    this.timeLimit = 0;
+    this.currentCount = 0;
+    this.currentGolden = 0;
+    this.statusMessage = 'Press start to herd particles into the glowing ring.';
+    this.flashSuccess = 0;
+    this.flashFail = 0;
+    this.uiAccumulator = 0;
+    this.cachedAccent = null;
+    this.active = false;
+
+    this.lastKnownWidth = 0;
+    this.lastKnownHeight = 0;
+    this.hud = null;
+
+    this.boundHandleStart = this.handleStartButton.bind(this);
+    this.boundHandleEnd = this.handleEndButton.bind(this);
+  }
+
+  handleEndButton() {
+    // This will be overridden by controls.js to handle mode switching
+    this.stopGame('Game ended.');
+  }
+
+  showHud() {
+    if (this.hud?.root) {
+      this.hud.root.style.display = 'flex';
+    }
+  }
+
+  hideHud() {
+    if (this.hud?.root) {
+      this.hud.root.style.display = 'none';
+    }
+  }
+
+  updateStatsDisplay() {
+    const bestScoreDisplay = document.querySelector('[data-role="best-score-display"]');
+    const topStreakDisplay = document.querySelector('[data-role="top-streak-display"]');
+
+    if (bestScoreDisplay) {
+      bestScoreDisplay.textContent = this.bestScore;
+    }
+    if (topStreakDisplay) {
+      topStreakDisplay.textContent = this.topStreak;
+    }
+  }
+
+  onEnter() {
+    // Ensure magnet is enabled for gameplay
+    if (!this.simulation.state.magnetEnabled) {
+      this.simulation.state.magnetEnabled = true;
+      if (this.simulation.updateMagnetToggleUI) {
+        this.simulation.updateMagnetToggleUI(true);
+      }
+    }
+
+    this.lastKnownWidth = this.simulation.width;
+    this.lastKnownHeight = this.simulation.height;
+    this.bindHud();
+    this.placeIdleGoal();
+    this.updateHud(true);
+
+    // Show HUD when entering game mode
+    this.showHud();
+  }
+
+  onExit() {
+    if (this.hud?.button) {
+      this.hud.button.removeEventListener('click', this.boundHandleStart);
+    }
+    if (this.hud?.endButton) {
+      this.hud.endButton.removeEventListener('click', this.boundHandleEnd);
+    }
+    this.clearGoldenParticles();
+    this.active = false;
+
+    // Hide HUD when exiting game mode
+    this.hideHud();
+
+    // Update stats in Games tab
+    this.updateStatsDisplay();
+  }
+
+  update(dt) {
+    // Update particles (from InteractiveMode)
+    super.update(dt);
+
+    if (!this.goal) return;
+
+    const { width, height, state } = this.simulation;
+
+    // Handle window resize
+    if (width !== this.lastKnownWidth || height !== this.lastKnownHeight) {
+      this.lastKnownWidth = width;
+      this.lastKnownHeight = height;
+      this.ensureGoalWithinBounds();
+      if (!this.active) {
+        this.placeIdleGoal();
+      }
+    }
+
+    this.drainFlashes(dt);
+
+    // Idle mode - just count particles
+    if (!this.active) {
+      this.uiAccumulator += dt;
+      if (this.uiAccumulator >= 0.25) {
+        const counts = this.countParticles();
+        this.currentCount = counts.inside;
+        this.currentGolden = counts.goldenInside;
+        this.uiAccumulator = 0;
+        this.updateHud();
+      }
+      return;
+    }
+
+    // Active game mode
+    const counts = this.countParticles();
+    this.currentCount = counts.inside;
+    this.currentGolden = counts.goldenInside;
+    this.timeRemaining = Math.max(0, this.timeRemaining - dt);
+
+    if (this.timeRemaining <= 0 && this.currentCount < this.goal.threshold) {
+      this.handleFailure();
+      return;
+    }
+
+    if (this.currentCount >= this.goal.threshold) {
+      this.handleSuccess(this.currentGolden);
+      return;
+    }
+
+    this.uiAccumulator += dt;
+    if (this.uiAccumulator >= 0.1) {
+      this.updateHud();
+      this.uiAccumulator = 0;
+    }
+  }
+
+  render(ctx) {
+    // Render particles and field lines (from InteractiveMode)
+    super.render(ctx);
+
+    // Render goal ring
+    this.drawGoal(ctx);
+  }
+
+  drawGoal(ctx) {
+    if (!this.goal) return;
+    const { x, y, radius } = this.goal;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    const accent = this.pickAccent();
+    const progress = this.goal.threshold ? Math.min(1, this.currentCount / this.goal.threshold) : 0;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(x, y);
+
+    const successBoost = this.flashSuccess > 0 ? 26 * this.flashSuccess : 0;
+    const failBoost = this.flashFail > 0 ? 22 * this.flashFail : 0;
+
+    ctx.shadowColor = this.flashFail > 0 ? 'rgba(255, 82, 96, 0.92)' : accent;
+    ctx.shadowBlur = (this.active ? 26 : 18) + successBoost + failBoost;
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = (this.active ? 0.35 : 0.18) + progress * 0.4;
+    ctx.strokeStyle = this.flashFail > 0 ? 'rgba(255, 104, 118, 0.85)' : accent;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.1 + progress * 0.5;
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * (0.62 + progress * 0.28), 0, Math.PI * 2);
+    ctx.fill();
+
+    if (this.active && this.timeLimit > 0) {
+      const timeRatio = Math.max(0, Math.min(1, this.timeRemaining / this.timeLimit));
+      ctx.globalAlpha = 0.48;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius + 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * timeRatio, false);
+      ctx.stroke();
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = '#dff6ff';
+    ctx.font = '600 17px "Segoe UI", Tahoma, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const targetText = this.goal ? `${this.currentCount}/${this.goal.threshold}` : '–';
+    ctx.fillText(targetText, 0, 2);
+
+    if (this.currentGolden > 0) {
+      ctx.font = '500 13px "Segoe UI", Tahoma, sans-serif';
+      ctx.fillStyle = '#ffe38a';
+      ctx.fillText(`+${this.currentGolden * GOLDEN_BONUS}`, 0, radius * -0.55);
+    }
+
+    ctx.restore();
+  }
+
+  handleStartButton() {
+    this.startGame();
+  }
+
+  startGame() {
+    // Ensure magnet is on
+    if (!this.simulation.state.magnetEnabled) {
+      this.simulation.state.magnetEnabled = true;
+      if (this.simulation.updateMagnetToggleUI) {
+        this.simulation.updateMagnetToggleUI(true);
+      }
+    }
+
+    this.score = 0;
+    this.streak = 0;
+    this.timeRemaining = 0;
+    this.timeLimit = 0;
+    this.round = 0;
+    this.active = true;
+    this.flashFail = 0;
+    this.flashSuccess = 0;
+    this.uiAccumulator = 0;
+    this.prepareNextRound();
+    this.statusMessage = `Round ${this.round}: Herd ${this.goal.threshold} particles into the ring.`;
+    this.updateHud(true);
+  }
+
+  prepareNextRound() {
+    const nextRound = this.round + 1;
+    const radius = this.computeRadius(nextRound);
+    const threshold = this.computeThreshold(nextRound);
+    const timeLimit = this.computeTime(nextRound);
+    const goldenCount = this.computeGolden(nextRound);
+
+    this.round = nextRound;
+    this.timeLimit = timeLimit;
+    this.timeRemaining = timeLimit;
+    this.goal = {
+      x: this.simulation.width * 0.5,
+      y: this.simulation.height * 0.5,
+      radius,
+      threshold,
+      goldenCount,
+      goldenValue: GOLDEN_BONUS,
+    };
+    this.moveGoalRandom();
+    this.assignGoldenParticles(goldenCount);
+    this.currentCount = 0;
+    this.currentGolden = 0;
+    this.uiAccumulator = 0;
+  }
+
+  computeRadius(round) {
+    const base = this.options.baseRadius;
+    return Math.max(70, Math.round(base - (round - 1) * 7));
+  }
+
+  computeThreshold(round) {
+    const base = this.options.baseThreshold;
+    return Math.round(base + (round - 1) * 9);
+  }
+
+  computeTime(round) {
+    const base = this.options.baseTime;
+    return Math.max(10, base - (round - 1) * 1.6);
+  }
+
+  computeGolden(round) {
+    return Math.min(18, 4 + round * 2);
+  }
+
+  moveGoalRandom() {
+    if (!this.goal) return;
+    const { width, height } = this.simulation;
+    if (!width || !height) return;
+    const margin = this.goal.radius + 36;
+    const minX = margin;
+    const maxX = Math.max(margin, width - margin);
+    const minY = margin;
+    const maxY = Math.max(margin, height - margin);
+    if (maxX <= minX || maxY <= minY) {
+      this.goal.x = width * 0.5;
+      this.goal.y = height * 0.5;
+      return;
+    }
+    this.goal.x = minX + Math.random() * (maxX - minX);
+    this.goal.y = minY + Math.random() * (maxY - minY);
+  }
+
+  ensureGoalWithinBounds() {
+    if (!this.goal) return;
+    const { width, height } = this.simulation;
+    if (!width || !height) return;
+    const margin = this.goal.radius + 32;
+    const minX = margin;
+    const maxX = Math.max(margin, width - margin);
+    const minY = margin;
+    const maxY = Math.max(margin, height - margin);
+    this.goal.x = clamp(this.goal.x, minX, maxX);
+    this.goal.y = clamp(this.goal.y, minY, maxY);
+  }
+
+  placeIdleGoal() {
+    const radius = this.options.baseRadius;
+    this.goal = {
+      x: this.simulation.width * 0.5,
+      y: this.simulation.height * 0.5,
+      radius,
+      threshold: this.options.baseThreshold,
+      goldenCount: 0,
+      goldenValue: GOLDEN_BONUS,
+    };
+    this.ensureGoalWithinBounds();
+  }
+
+  assignGoldenParticles(count) {
+    const particles = this.simulation?.particles?.particles;
+    if (!particles || !particles.length) return;
+    particles.forEach((particle) => {
+      particle.golden = false;
+    });
+    const target = Math.min(count, particles.length);
+    const chosen = new Set();
+    while (chosen.size < target) {
+      const index = Math.floor(Math.random() * particles.length);
+      if (chosen.has(index)) continue;
+      particles[index].golden = true;
+      chosen.add(index);
+    }
+  }
+
+  clearGoldenParticles() {
+    const particles = this.simulation?.particles?.particles;
+    if (!particles) return;
+    particles.forEach((particle) => {
+      particle.golden = false;
+    });
+  }
+
+  countParticles() {
+    const particles = this.simulation?.particles?.particles;
+    if (!particles || !particles.length || !this.goal) {
+      return { inside: 0, goldenInside: 0 };
+    }
+    const radiusSq = this.goal.radius * this.goal.radius;
+    let inside = 0;
+    let goldenInside = 0;
+    for (let i = 0; i < particles.length; i += 1) {
+      const p = particles[i];
+      const dx = p.x - this.goal.x;
+      const dy = p.y - this.goal.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq <= radiusSq) {
+        inside += 1;
+        if (p.golden) {
+          goldenInside += 1;
+        }
+      }
+    }
+    return { inside, goldenInside };
+  }
+
+  drainFlashes(dt) {
+    if (this.flashSuccess > 0) {
+      this.flashSuccess = Math.max(0, this.flashSuccess - dt * 1.8);
+    }
+    if (this.flashFail > 0) {
+      this.flashFail = Math.max(0, this.flashFail - dt * 1.4);
+    }
+  }
+
+  handleSuccess(goldenInside) {
+    const clearedRound = this.round;
+    const timeBonus = Math.round(this.timeRemaining * 12);
+    const goldenBonus = goldenInside * GOLDEN_BONUS;
+    const roundScore = this.goal.threshold * SCORE_PER_PARTICLE + timeBonus + goldenBonus;
+    this.score += roundScore;
+    this.bestScore = Math.max(this.bestScore, this.score);
+    this.streak += 1;
+    this.topStreak = Math.max(this.topStreak, this.streak);
+    this.flashSuccess = 0.65;
+
+    this.prepareNextRound();
+    this.statusMessage = `Round ${clearedRound} cleared! +${roundScore} pts. Next target: ${this.goal.threshold}.`;
+    this.updateHud(true);
+  }
+
+  handleFailure(message) {
+    this.flashFail = message ? 0 : 0.8;
+    this.bestScore = Math.max(this.bestScore, this.score);
+    this.topStreak = Math.max(this.topStreak, this.streak);
+    this.statusMessage = message ?? `Run over! You gathered ${this.currentCount}/${this.goal.threshold}.`;
+    this.active = false;
+    this.timeRemaining = 0;
+    this.streak = 0;
+    this.clearGoldenParticles();
+    this.currentGolden = 0;
+    this.updateHud(true);
+    this.updateStatsDisplay();
+  }
+
+  pickAccent() {
+    const accent = this.simulation.state?.particleColor;
+    if (accent && typeof accent === 'string') {
+      this.cachedAccent = accent;
+      return accent;
+    }
+    if (this.cachedAccent) return this.cachedAccent;
+    return '#1e90ff';
+  }
+
+  bindHud() {
+    const root = document.getElementById('game-hud');
+    if (!root) return;
+    this.hud = {
+      root,
+      score: root.querySelector('[data-role="score"]'),
+      best: root.querySelector('[data-role="best"]'),
+      streak: root.querySelector('[data-role="streak"]'),
+      topStreak: root.querySelector('[data-role="top-streak"]'),
+      timer: root.querySelector('[data-role="timer"]'),
+      target: root.querySelector('[data-role="target"]'),
+      status: root.querySelector('[data-role="status"]'),
+      button: document.querySelector('#game-start'),
+      endButton: root.querySelector('#game-end'),
+    };
+    if (this.hud.button) {
+      this.hud.button.addEventListener('click', this.boundHandleStart);
+    }
+    if (this.hud.endButton) {
+      this.hud.endButton.addEventListener('click', this.boundHandleEnd);
+    }
+    root.classList.add('ready');
+  }
+
+  updateHud(force = false) {
+    if (!this.hud) return;
+    const { score, best, streak, topStreak, timer, target, status } = this.hud;
+    if (score) score.textContent = this.score;
+    if (best) best.textContent = this.bestScore;
+    if (streak) streak.textContent = this.streak;
+    if (topStreak) topStreak.textContent = this.topStreak;
+    if (target && this.goal) {
+      target.textContent = `${this.currentCount}/${this.goal.threshold}`;
+    }
+    if (timer) {
+      timer.textContent = this.active ? this.timeRemaining.toFixed(1) : '--';
+    }
+    if (status) {
+      status.textContent = this.statusMessage;
+    }
+  }
+
+  get name() {
+    return 'game';
+  }
+
+  get allowsScreensaver() {
+    return false; // Game mode is exclusive
+  }
+}
+
+/**
+ * Screensaver mode that wraps another mode (Interactive or Life) and adds autonomous magnet drift.
+ * Uses the decorator pattern to add behavior without modifying the base mode.
+ */
+class ScreensaverMode extends SimulationMode {
+  constructor(simulation, baseMode) {
+    super(simulation);
+    this.baseMode = baseMode;
+    this.baseMode.simulation = simulation;
+
+    this.elapsed = 0;
+    this.nextTransition = simulation.state.screensaverInterval;
+    this.driftSeeds = this.generateDriftSeeds();
+  }
+
+  onEnter() {
+    this.elapsed = 0;
+    this.nextTransition = this.simulation.state.screensaverInterval;
+    this.driftSeeds = this.generateDriftSeeds();
+
+    // Let base mode initialize
+    if (this.baseMode.onEnter) {
+      this.baseMode.onEnter();
+    }
+  }
+
+  onExit() {
+    // Let base mode cleanup
+    if (this.baseMode.onExit) {
+      this.baseMode.onExit();
+    }
+  }
+
+  update(dt) {
+    // Update magnet positions with autonomous drift
+    this.updateMagnetDrift(dt);
+
+    // Handle theme transitions
+    this.elapsed += dt;
+    if (this.elapsed >= this.nextTransition) {
+      this.triggerScreensaverTransition();
+      this.elapsed = 0;
+      this.nextTransition = this.simulation.state.screensaverInterval;
+    }
+
+    // Delegate to base mode for particle/life updates
+    if (this.baseMode.update) {
+      this.baseMode.update(dt);
+    }
+  }
+
+  render(ctx) {
+    // Delegate rendering to base mode
+    if (this.baseMode.render) {
+      this.baseMode.render(ctx);
+    }
+  }
+
+  updateMagnetDrift(dt) {
+    const { magnets, state, width, height } = this.simulation;
+    const driftSpeed = state.screensaverDrift;
+
+    magnets.forEach((magnet, index) => {
+      magnet.setShiftPressed(this.simulation.shiftPressed);
+      if (!state.magnetEnabled) return;
+
+      const seeds = this.driftSeeds[index % this.driftSeeds.length];
+      const radius = seeds.radius * Math.min(width, height) * 0.5;
+      const speedX = driftSpeed * seeds.speedX;
+      const speedY = driftSpeed * seeds.speedY;
+
+      magnet.x = width * 0.5 + Math.cos(seeds.phaseX + this.elapsed * speedX) * radius;
+      magnet.y = height * 0.5 + Math.sin(seeds.phaseY + this.elapsed * speedY) * radius;
+      magnet.clamp(width, height, state.magnetSize);
+
+      // Periodic polarity flip
+      if (seeds.flipInterval > 0 && this.elapsed % seeds.flipInterval < dt) {
+        magnet.mode = magnet.mode > 0 ? -1 : 1;
+      }
+    });
   }
 
   triggerScreensaverTransition() {
-    const theme = FerroSimulation.pickRandomTheme();
-    this.setState({
-      particleColor: theme.particleColor,
-      magnetColor: theme.magnetColor,
-      fieldLineColor: theme.fieldColor,
-      particleGlow: theme.glow,
-    });
+    const theme = ScreensaverMode.pickRandomTheme();
+    this.simulation.state.particleColor = theme.particleColor;
+    this.simulation.state.magnetColor = theme.magnetColor;
+    this.simulation.state.fieldLineColor = theme.fieldColor;
+    this.simulation.state.particleGlow = theme.glow;
+
     const root = document.documentElement;
-    root.style.setProperty('--accent', this.state.particleColor);
-    if (this.state.lifeMode && theme.lifeRule) {
-      this.setState({ lifeRule: theme.lifeRule });
+    root.style.setProperty('--accent', this.simulation.state.particleColor);
+
+    // Apply Life rule if in Life mode
+    if (this.baseMode.name === 'life' && theme.lifeRule) {
+      this.simulation.life.applyRule(theme.lifeRule);
+      this.simulation.state.lifeRule = this.simulation.life.rule;
     }
   }
 
@@ -1360,15 +2371,8 @@ class FerroSimulation {
     return themes[Math.floor(Math.random() * themes.length)];
   }
 
-  randomizeScreensaver() {
-    this.screensaver.elapsed = 0;
-    this.screensaver.nextTransition = this.state.screensaverInterval;
-    this.screensaver.driftSeeds = this.generateDriftSeeds();
-    this.triggerScreensaverTransition();
-  }
-
   generateDriftSeeds() {
-    const count = Math.max(1, this.magnets.length);
+    const count = Math.max(1, this.simulation.magnets.length);
     const seeds = [];
     for (let i = 0; i < count; i += 1) {
       seeds.push({
@@ -1381,6 +2385,111 @@ class FerroSimulation {
       });
     }
     return seeds;
+  }
+
+  randomize() {
+    this.elapsed = 0;
+    this.nextTransition = this.simulation.state.screensaverInterval;
+    this.driftSeeds = this.generateDriftSeeds();
+    this.triggerScreensaverTransition();
+  }
+
+  // Override event handlers to prevent manual magnet control
+  handlePointerDown(event) {
+    return true; // Block pointer control
+  }
+
+  handlePointerMove(event) {
+    return true; // Block pointer control
+  }
+
+  handlePointerUp(event) {
+    return true; // Block pointer control
+  }
+
+  get name() {
+    return `screensaver(${this.baseMode.name})`;
+  }
+
+  get allowsMagnetControl() {
+    return false; // Disable manual control
+  }
+
+  get allowsScreensaver() {
+    return false; // Already in screensaver mode
+  }
+
+  // Provide access to the base mode
+  get wrappedMode() {
+    return this.baseMode;
+  }
+}
+
+/**
+ * Simple tab manager for the controls sidebar.
+ */
+class TabManager {
+  constructor(container) {
+    this.container = container;
+    this.tabs = [];
+    this.activeTab = null;
+
+    this.init();
+  }
+
+  init() {
+    // Find all tab buttons and content
+    const tabButtons = this.container.querySelectorAll('[data-tab-button]');
+    const tabContents = this.container.querySelectorAll('[data-tab-content]');
+
+    this.tabs = Array.from(tabButtons).map((button, index) => {
+      const tabId = button.getAttribute('data-tab-button');
+      const content = this.container.querySelector(`[data-tab-content="${tabId}"]`);
+
+      return {
+        id: tabId,
+        button,
+        content,
+      };
+    });
+
+    // Attach click handlers
+    this.tabs.forEach((tab) => {
+      tab.button.addEventListener('click', () => {
+        this.switchTo(tab.id);
+      });
+    });
+
+    // Activate first tab by default
+    if (this.tabs.length > 0) {
+      const defaultTab = this.tabs.find(t => t.button.classList.contains('active'));
+      this.switchTo(defaultTab ? defaultTab.id : this.tabs[0].id);
+    }
+  }
+
+  switchTo(tabId) {
+    const tab = this.tabs.find(t => t.id === tabId);
+    if (!tab) return;
+
+    // Deactivate all tabs
+    this.tabs.forEach(t => {
+      t.button.classList.remove('active');
+      if (t.content) {
+        t.content.classList.remove('active');
+      }
+    });
+
+    // Activate selected tab
+    tab.button.classList.add('active');
+    if (tab.content) {
+      tab.content.classList.add('active');
+    }
+
+    this.activeTab = tabId;
+  }
+
+  getActiveTab() {
+    return this.activeTab;
   }
 }
 
@@ -1411,6 +2520,7 @@ function setupControls(simulation) {
   const magnetFalloff = get('magnet-falloff');
   const magnetSize = get('magnet-size');
   const magnetColor = get('magnet-color');
+  const magnetEnabledToggle = get('magnet-enabled');
   const magnetAdd = get('magnet-add');
   const magnetReset = get('magnet-reset');
   const showFieldLines = get('show-field-lines');
@@ -1432,14 +2542,26 @@ function setupControls(simulation) {
   const screensaverInterval = get('screensaver-interval');
   const screensaverRandomize = get('screensaver-randomize');
 
+  // Keep track of base modes for screensaver wrapping
+  let interactiveModeInstance = simulation.currentMode;
+  let lifeModeInstance = new LifeMode(simulation);
+
   const syncLifeToggleState = () => {
     if (!lifeMode) return;
-    lifeMode.checked = simulation.state.lifeMode;
+    const isLifeMode = simulation.currentMode?.name === 'life' ||
+                       simulation.currentMode?.wrappedMode?.name === 'life';
+    lifeMode.checked = isLifeMode;
     const particleControls = [particleCount, particleShape, particleGlow, particleSpeed];
     particleControls.forEach((input) => {
       if (!input) return;
-      input.disabled = simulation.state.lifeMode;
+      input.disabled = isLifeMode;
     });
+  };
+
+  const syncScreensaverToggleState = () => {
+    if (!screensaverEnabled) return;
+    const isScreensaver = simulation.currentMode?.name?.startsWith('screensaver');
+    screensaverEnabled.checked = isScreensaver;
   };
 
   const syncLifePresetSelector = () => {
@@ -1499,6 +2621,18 @@ function setupControls(simulation) {
     });
   }
 
+  if (magnetEnabledToggle) {
+    magnetEnabledToggle.checked = simulation.state.magnetEnabled;
+    simulation.updateMagnetToggleUI = (enabled) => {
+      magnetEnabledToggle.checked = enabled;
+    };
+    magnetEnabledToggle.addEventListener('change', (event) => {
+      simulation.setState({ magnetEnabled: event.target.checked });
+    });
+  } else {
+    simulation.updateMagnetToggleUI = () => {};
+  }
+
   if (magnetStrength) {
     magnetStrength.value = simulation.state.magnetStrength;
     const formatter = (value) => `Strength ${value}`;
@@ -1552,15 +2686,28 @@ function setupControls(simulation) {
   }
 
   if (screensaverEnabled) {
-    screensaverEnabled.checked = simulation.state.screensaverEnabled;
+    syncScreensaverToggleState();
     screensaverEnabled.addEventListener('change', (event) => {
-      simulation.setState({ screensaverEnabled: event.target.checked });
+      if (event.target.checked) {
+        // Wrap current mode in screensaver
+        const currentMode = simulation.currentMode;
+        const wrappedMode = currentMode?.wrappedMode ? currentMode.wrappedMode : currentMode;
+        const screensaver = new ScreensaverMode(simulation, wrappedMode);
+        simulation.setMode(screensaver);
+      } else {
+        // Unwrap to base mode
+        const baseMode = simulation.currentMode?.wrappedMode;
+        if (baseMode) {
+          simulation.setMode(baseMode);
+        }
+      }
+      syncScreensaverToggleState();
     });
   }
 
   if (screensaverDrift) {
     screensaverDrift.value = simulation.state.screensaverDrift;
-    const formatter = (value) => `${value} drift`; // simple tooltip
+    const formatter = (value) => `${value} drift`;
     updateRangeTooltip(screensaverDrift, formatter);
     screensaverDrift.addEventListener('input', (event) => {
       const value = Number(event.target.value);
@@ -1571,7 +2718,7 @@ function setupControls(simulation) {
 
   if (screensaverInterval) {
     screensaverInterval.value = simulation.state.screensaverInterval;
-    const formatter = (value) => `${value}s`; // seconds
+    const formatter = (value) => `${value}s`;
     updateRangeTooltip(screensaverInterval, formatter);
     screensaverInterval.addEventListener('input', (event) => {
       const value = Number(event.target.value);
@@ -1582,15 +2729,44 @@ function setupControls(simulation) {
 
   if (screensaverRandomize) {
     screensaverRandomize.addEventListener('click', () => {
-      simulation.randomizeScreensaver();
+      if (simulation.currentMode?.name?.startsWith('screensaver')) {
+        simulation.currentMode.randomize();
+      }
     });
   }
 
   if (lifeMode) {
     syncLifeToggleState();
     lifeMode.addEventListener('change', (event) => {
-      simulation.setState({ lifeMode: event.target.checked });
+      if (event.target.checked) {
+        // Check if currently in screensaver mode
+        const isScreensaver = simulation.currentMode?.name?.startsWith('screensaver');
+        if (isScreensaver) {
+          // Switch to Life mode wrapped in screensaver
+          lifeModeInstance = new LifeMode(simulation);
+          const screensaver = new ScreensaverMode(simulation, lifeModeInstance);
+          simulation.setMode(screensaver);
+        } else {
+          // Switch to Life mode directly
+          lifeModeInstance = new LifeMode(simulation);
+          simulation.setMode(lifeModeInstance);
+        }
+      } else {
+        // Switch back to Interactive mode
+        const isScreensaver = simulation.currentMode?.name?.startsWith('screensaver');
+        if (isScreensaver) {
+          // Switch to Interactive wrapped in screensaver
+          interactiveModeInstance = new InteractiveMode(simulation);
+          const screensaver = new ScreensaverMode(simulation, interactiveModeInstance);
+          simulation.setMode(screensaver);
+        } else {
+          // Switch to Interactive mode directly
+          interactiveModeInstance = new InteractiveMode(simulation);
+          simulation.setMode(interactiveModeInstance);
+        }
+      }
       syncLifeToggleState();
+      syncScreensaverToggleState();
     });
   }
 
@@ -1700,10 +2876,74 @@ function setupControls(simulation) {
       simulation.resetParticles();
     });
   }
+
+  // Initialize game mode
+  const gameMode = new GameMode(simulation);
+
+  // Bind game start button to activate game mode
+  const gameStartButton = document.querySelector('#game-start');
+  if (gameStartButton) {
+    gameStartButton.addEventListener('click', () => {
+      // Switch to game mode
+      const currentMode = simulation.currentMode;
+      const isScreensaver = currentMode?.name?.startsWith('screensaver');
+
+      // If in screensaver, unwrap first
+      if (isScreensaver) {
+        const baseMode = currentMode.wrappedMode;
+        simulation.setMode(baseMode);
+      }
+
+      // Create new game mode instance and switch to it
+      const newGameMode = new GameMode(simulation);
+      simulation.setMode(newGameMode);
+
+      // Override end button handler to return to interactive mode
+      const gameEndButton = document.querySelector('#game-end');
+      if (gameEndButton) {
+        const handleEndClick = () => {
+          // Return to interactive mode
+          interactiveModeInstance = new InteractiveMode(simulation);
+          simulation.setMode(interactiveModeInstance);
+          gameEndButton.removeEventListener('click', handleEndClick);
+        };
+        gameEndButton.addEventListener('click', handleEndClick);
+      }
+    });
+  }
+
+  // Initialize tab manager
+  const controlsSection = document.querySelector('.controls');
+  if (controlsSection) {
+    const tabManager = new TabManager(controlsSection);
+
+    // Auto-switch to Life tab when Life mode is toggled ON
+    if (lifeMode) {
+      lifeMode.addEventListener('change', (event) => {
+        if (event.target.checked) {
+          tabManager.switchTo('life');
+        }
+      });
+    }
+
+    // Auto-switch to Screensaver tab when Screensaver is toggled ON
+    if (screensaverEnabled) {
+      screensaverEnabled.addEventListener('change', (event) => {
+        if (event.target.checked) {
+          tabManager.switchTo('screensaver');
+        }
+      });
+    }
+  }
 }
 
 const canvas = document.getElementById('ferro-canvas');
 const simulation = new FerroSimulation(canvas);
+
+// Start with Interactive mode
+const interactiveMode = new InteractiveMode(simulation);
+simulation.setMode(interactiveMode);
+
 simulation.start();
 
 setupControls(simulation);

@@ -4,6 +4,7 @@ export const defaultState = {
   particleShape: 'circle',
   particleGlow: 12,
   particleSpeed: 1,
+  magnetEnabled: true,
   magnetStrength: 220,
   magnetFalloff: 1.6,
   magnetSize: 22,

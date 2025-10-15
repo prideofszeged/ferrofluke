@@ -132,6 +132,19 @@ export class ParticleSystem {
           ctx.fill();
       }
       ctx.restore();
+
+      if (p.golden) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffd760';
+        ctx.lineWidth = 1.3;
+        ctx.shadowColor = '#ffe89a';
+        ctx.shadowBlur = Math.max(16, state.particleGlow + 6);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     ctx.restore();
@@ -148,6 +161,7 @@ export class ParticleSystem {
       noise: Math.random() * Math.PI * 2,
       rotation: Math.random() * Math.PI * 2,
       spin: (Math.random() - 0.5) * 2,
+      golden: false,
     };
   }
 }

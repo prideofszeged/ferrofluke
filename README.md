@@ -10,7 +10,7 @@ A lightweight, browser-based ferrofluid simulation that reacts to a magnet you c
 ## Controls
 
 - **Particles** – tune the count, pick between circle, square, or triangle sprites, set a base colour, amplify the glow, and scale the swarm speed.
-- **Magnet** – change field strength, falloff, radius, the colour of the indicator, and drop extra magnets with **Add Magnet** (use **Reset Magnets** to go back to one).
+- **Magnet** – change field strength, falloff, radius, the colour of the indicator, drop extra magnets with **Add Magnet** (use **Reset Magnets** to go back to one), and flip the field off entirely with the **Enable magnet** toggle (or press `M`).
 - **Field lines** – toggle the stylised field visualiser and choose its colour.
 - **Game of Life** – flip into a cellular automaton mode, tune step speed, cell size, pick a B/S rule (or apply a preset), magnet bias, and the alive/dead colours. Seed the grid with **Randomize Life** or wipe it with **Clear Life**.
 - **Screensaver** – unleash autonomous mode: magnets drift, presets swap, and the palette breathes on its own. Control drift speed/preset interval or tap **Shuffle Screensaver** for a fresh combo.
@@ -24,6 +24,14 @@ A lightweight, browser-based ferrofluid simulation that reacts to a magnet you c
 - Increasing magnet size widens the area of influence and fattens the marker, handy when you want sweeping motion without upping strength.
 - In Life mode, try HighLife (`B36/S23`) or Seeds (`B2/S`) with a high magnet bias—the magnet acts like a catalyst in attraction mode or a disintegration pulse in repulsion mode.
 - Run `FEATURES.md` for a backlog of visual experiments we want to chase next (multi-magnets, screensaver, colour choreography, etc.).
+
+## Magnet Roundup mini-game
+
+- Click **Start Roundup** on the canvas overlay to spawn a glowing scoring ring.
+- Herd the target number of particles into the ring before the timer expires; streaks shorten the clock but ramp up rewards.
+- Golden particles (outlined in amber) add hefty bonuses when they finish inside the goal.
+- Miss a round and your run ends—hit Restart any time for another attempt.
+- The magnet automatically flicks back on when a round begins; press `M` if you need to pause magnet influence mid-run.
 
 ## Project layout
 
