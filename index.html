@@ -30,6 +30,12 @@ body {
   display: grid;
   grid-template-columns: 320px 1fr;
   min-height: 100vh;
+  transition: grid-template-columns 0.3s ease;
+  overflow: hidden;
+}
+
+.layout:has(.controls.collapsed) {
+  grid-template-columns: 0px 1fr;
 }
 
 .controls {
@@ -38,6 +44,65 @@ body {
   backdrop-filter: blur(12px);
   box-shadow: 0 0 40px var(--shadow);
   z-index: 2;
+  position: relative;
+  overflow: visible;
+  min-width: 320px;
+  transition: transform 0.3s ease;
+}
+
+.controls.collapsed {
+  transform: translateX(-320px);
+}
+
+.panel-toggle {
+  position: fixed;
+  top: 1.5rem;
+  left: 320px;
+  width: 36px;
+  height: 60px;
+  padding: 0;
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 2px 0 12px var(--shadow);
+}
+
+.panel-toggle:hover {
+  background: rgba(30, 144, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.layout:has(.controls.collapsed) .panel-toggle {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 80px;
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+  background: rgba(30, 144, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-left: none;
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.layout:has(.controls.collapsed) .panel-toggle:hover {
+  opacity: 1;
+  width: 32px;
+  background: rgba(30, 144, 255, 0.5);
+  transform: translateY(-50%);
 }
 
 .controls h1 {
@@ -297,11 +362,61 @@ button:hover {
 @media (max-width: 960px) {
   .layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    transition: grid-template-rows 0.3s ease;
+  }
+
+  .layout:has(.controls.collapsed) {
+    grid-template-rows: 0px 1fr;
   }
 
   .controls {
     position: sticky;
     top: 0;
+    min-height: auto;
+  }
+
+  .controls.collapsed {
+    transform: translateY(calc(-100% - 1.5rem));
+  }
+
+  .panel-toggle {
+    top: auto;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 36px;
+    border-radius: 0 0 8px 8px;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .panel-toggle:hover {
+    transform: translateX(-50%) translateY(2px);
+  }
+
+  .layout:has(.controls.collapsed) .panel-toggle {
+    left: 50%;
+    top: 0;
+    bottom: auto;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 24px;
+    border-radius: 0 0 8px 8px;
+    border-top: none;
+    background: rgba(30, 144, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-top: none;
+    opacity: 0.7;
+    font-size: 0.85rem;
+  }
+
+  .layout:has(.controls.collapsed) .panel-toggle:hover {
+    opacity: 1;
+    height: 32px;
+    background: rgba(30, 144, 255, 0.5);
+    transform: translateX(-50%);
   }
 
   .canvas-wrapper {
@@ -321,6 +436,7 @@ button:hover {
 </head>
 <body>
   <main class="layout">
+    <button class="panel-toggle" aria-label="Toggle controls panel" title="Toggle panel (Tab)">&lt;&lt;</button>
     <section class="controls">
       <h1>Ferrofluid Playground</h1>
       <p>Tweak the settings to create your own ferrofluid magnet show.</p>
@@ -3383,6 +3499,38 @@ function setupControls(simulation) {
         }
       });
     }
+  }
+
+  // Panel toggle functionality
+  const panelToggle = document.querySelector('.panel-toggle');
+  const controlsPanel = document.querySelector('.controls');
+
+  if (panelToggle && controlsPanel) {
+    function togglePanel() {
+      const isCollapsed = controlsPanel.classList.toggle('collapsed');
+      panelToggle.innerHTML = isCollapsed ? '&gt;&gt;' : '&lt;&lt;';
+      panelToggle.setAttribute('aria-label', isCollapsed ? 'Show controls panel' : 'Hide controls panel');
+    }
+
+    panelToggle.addEventListener('click', togglePanel);
+
+    // Tab key shortcut to toggle panel
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Only trigger if not typing in an input
+        const activeElement = document.activeElement;
+        const isTyping = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT'
+        );
+
+        if (!isTyping) {
+          e.preventDefault();
+          togglePanel();
+        }
+      }
+    });
   }
 }
 

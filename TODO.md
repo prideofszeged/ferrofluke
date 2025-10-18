@@ -15,4 +15,7 @@
 - Multi-magnet support
 - Screensaver / autonomous mode (magnet drift + preset cycling)
 - CLAUDE.md guidance file for Claude Code
+- Collapsible controls panel with toggle button and Tab shortcut
+- Fixed panel toggle arrow direction (>> when collapsed, << when open)
+- Ensured panel toggle button is always visible using fixed positioning outside .controls
 - TEST
