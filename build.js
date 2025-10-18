@@ -20,6 +20,7 @@ const moduleOrder = [
   'src/modes/interactive-mode.js',
   'src/modes/life-mode.js',
   'src/modes/game-mode.js',
+  'src/modes/star-monster-mode.js',
   'src/modes/screensaver-mode.js',
   'src/ui/tab-manager.js',
   'src/ui/controls.js',

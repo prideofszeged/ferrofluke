@@ -2,6 +2,7 @@ import { defaultState } from '../state/default-state.js';
 import { InteractiveMode } from '../modes/interactive-mode.js';
 import { LifeMode } from '../modes/life-mode.js';
 import { GameMode } from '../modes/game-mode.js';
+import { StarMonsterMode } from '../modes/star-monster-mode.js';
 import { ScreensaverMode } from '../modes/screensaver-mode.js';
 import { TabManager } from './tab-manager.js';
 
@@ -392,7 +393,7 @@ export function setupControls(simulation) {
   // Initialize game mode
   const gameMode = new GameMode(simulation);
 
-  // Bind game start button to activate game mode
+  // Bind game start button to activate Magnet Roundup game mode
   const gameStartButton = document.querySelector('#game-start');
   if (gameStartButton) {
     gameStartButton.addEventListener('click', () => {
@@ -420,6 +421,38 @@ export function setupControls(simulation) {
           gameEndButton.removeEventListener('click', handleEndClick);
         };
         gameEndButton.addEventListener('click', handleEndClick);
+      }
+    });
+  }
+
+  // Bind star monster start button to activate Star Monster game mode
+  const starMonsterStartButton = document.querySelector('#star-monster-start');
+  if (starMonsterStartButton) {
+    starMonsterStartButton.addEventListener('click', () => {
+      // Switch to star monster mode
+      const currentMode = simulation.currentMode;
+      const isScreensaver = currentMode?.name?.startsWith('screensaver');
+
+      // If in screensaver, unwrap first
+      if (isScreensaver) {
+        const baseMode = currentMode.wrappedMode;
+        simulation.setMode(baseMode);
+      }
+
+      // Create new star monster mode instance and switch to it
+      const starMonsterMode = new StarMonsterMode(simulation);
+      simulation.setMode(starMonsterMode);
+
+      // Override end button handler to return to interactive mode
+      const starMonsterEndButton = document.querySelector('#star-monster-end');
+      if (starMonsterEndButton) {
+        const handleEndClick = () => {
+          // Return to interactive mode
+          interactiveModeInstance = new InteractiveMode(simulation);
+          simulation.setMode(interactiveModeInstance);
+          starMonsterEndButton.removeEventListener('click', handleEndClick);
+        };
+        starMonsterEndButton.addEventListener('click', handleEndClick);
       }
     });
   }

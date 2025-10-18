@@ -164,7 +164,22 @@
               </div>
             </div>
           </fieldset>
-          <p class="hint">More mini-games coming soon!</p>
+
+          <fieldset>
+            <legend>Feed the Star Monster</legend>
+            <p style="margin: 0 0 0.75rem; font-size: 0.85rem; line-height: 1.4; opacity: 0.85;">
+              Feed particles to the hungry star monster! It grows with each particle, but if it gets too big it explodes into fireworks!
+            </p>
+            <button type="button" id="star-monster-start" style="width: 100%; font-size: 0.95rem; padding: 0.75rem;">Feed the Star Monster</button>
+            <div class="game-stats" style="margin-top: 1rem; padding: 0.75rem; background: rgba(0,0,0,0.2); border-radius: 8px;">
+              <div style="font-size: 0.85rem;">
+                <div>
+                  <div style="opacity: 0.6; font-size: 0.75rem;">Best Score</div>
+                  <div style="font-weight: 600; font-size: 1.1rem;" data-role="star-best-score-display">0</div>
+                </div>
+              </div>
+            </div>
+          </fieldset>
         </div>
 
         <!-- Screensaver Tab -->
@@ -220,6 +235,24 @@
         </div>
         <p class="hud-status" data-role="status"></p>
         <button type="button" id="game-end" style="padding: 0.4rem 0.85rem; font-size: 0.85rem;">End Game</button>
+      </div>
+
+      <div id="star-monster-hud" class="game-hud" style="display: none;">
+        <div class="hud-grid">
+          <div class="hud-metric">
+            <span class="label">Score</span>
+            <strong data-role="star-score">0</strong>
+          </div>
+          <div class="hud-metric">
+            <span class="label">Monster Size</span>
+            <strong data-role="star-size" style="color: #f2faff;">0%</strong>
+          </div>
+          <div class="hud-metric" style="grid-column: 1 / -1;">
+            <span class="label">Particles Eaten</span>
+            <strong data-role="star-eaten">0</strong>
+          </div>
+        </div>
+        <button type="button" id="star-monster-end" style="padding: 0.4rem 0.85rem; font-size: 0.85rem;">End Game</button>
       </div>
     </section>
   </main>
