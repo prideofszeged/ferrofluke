@@ -71,6 +71,15 @@ Modes encapsulate specific simulation behaviors using the Strategy Pattern. Each
   - Updates HUD overlay (`#game-hud`)
   - Exclusive mode (`allowsScreensaver: false`)
 
+- **`star-monster-mode.js`**: Star Monster feeding game (~380 lines)
+  - Extends `InteractiveMode` (particles + manual control)
+  - Feed particles to a growing star monster without letting it explode
+  - Monster has custom attraction force independent of magnets
+  - Tracks score, size percentage, and particles eaten
+  - Explosion triggers fireworks animation when monster reaches max size
+  - Updates HUD overlay (`#star-monster-hud`)
+  - Exclusive mode (`allowsScreensaver: false`)
+
 - **`screensaver-mode.js`**: Autonomous drift wrapper (~170 lines)
   - **Decorator Pattern**: wraps `InteractiveMode` or `LifeMode`
   - Overrides magnet control with autonomous Lissajous curve drift
@@ -83,7 +92,13 @@ Modes encapsulate specific simulation behaviors using the Strategy Pattern. Each
   - Life checkbox: `simulation.setMode(new LifeMode(simulation))`
   - Screensaver checkbox: Wraps current mode in `ScreensaverMode`
   - Game start button: Handled by `GameMode.onEnter()` binding
+  - Star Monster button: Handled by `StarMonsterMode.onEnter()` binding
   - Handles mode combinations (e.g., Life + Screensaver)
+
+- **`tab-manager.js`**: Manages tabbed interface in controls sidebar
+  - Handles tab switching via `data-tab-button` and `data-tab-content` attributes
+  - Activates first tab (or tab with `active` class) on initialization
+  - Simple event delegation for tab clicks
 
 #### State (`src/state/`)
 - **`default-state.js`**: Shared default configuration for particles, magnets, Life mode, and screensaver.
@@ -104,14 +119,15 @@ simulation.step(dt) → currentMode.update(dt) → currentMode.render(ctx)
 SimulationMode (base)
 ├── InteractiveMode (particles + manual control)
 ├── LifeMode (Life automaton + manual control)
-├── GameMode extends InteractiveMode (exclusive game)
+├── GameMode extends InteractiveMode (exclusive game: Magnet Roundup)
+├── StarMonsterMode extends InteractiveMode (exclusive game: Star Monster)
 └── ScreensaverMode (decorator wrapping Interactive/Life)
 ```
 
 #### Mode Transitions
 - **Interactive ↔ Life**: Direct switch via `setMode()`
 - **Screensaver wrapping**: Wraps any base mode, unwraps on disable
-- **Game mode**: Exclusive, can't be wrapped by screensaver
+- **Game modes** (Magnet Roundup & Star Monster): Exclusive, can't be wrapped by screensaver
 - Mode exclusivity enforced via `allowsScreensaver` property
 
 #### Event Handling Chain
@@ -131,7 +147,9 @@ State lives in `simulation.state` and is updated via `simulation.setState(partia
 - **Magnet control**: Click/drag canvas to move nearest magnet. Hold Shift for repulsion mode. Press M to toggle magnet on/off.
 - **Multi-magnets**: "Add Magnet" spawns additional magnets. "Reset Magnets" returns to single magnet.
 - **Mode switching**: Life checkbox switches between Interactive and Life modes. Screensaver checkbox wraps current mode.
-- **Game mode**: "Start Roundup" button activates game, managed by GameMode's HUD binding.
+- **Game modes**:
+  - "Start Roundup" button activates Magnet Roundup game (GameMode's HUD binding)
+  - "Start Star Monster" button activates Star Monster game (StarMonsterMode's HUD binding)
 
 ### Build Process Details
 `build.js` concatenates modules in dependency order, strips `import`/`export` statements, wraps in an IIFE, and inlines into `index.dev.html` to produce a standalone bundle.
@@ -143,9 +161,10 @@ State lives in `simulation.state` and is updated via `simulation.setState(partia
 4. `magnet.js`
 5. `particle-system.js`
 6. `ferro-simulation.js`
-7. **Mode files** (simulation-mode → interactive → life → game → screensaver)
-8. `controls.js`
-9. `main.js`
+7. **Mode files** (simulation-mode → interactive → life → game → star-monster → screensaver)
+8. `tab-manager.js`
+9. `controls.js`
+10. `main.js`
 
 This order ensures dependencies are available before use in the stripped bundle.
 
@@ -158,12 +177,14 @@ This order ensures dependencies are available before use in the stripped bundle.
 
 **After refactoring:**
 - `ferro-simulation.js`: 466 lines (orchestrator only)
-- Mode files: ~970 lines across 5 focused classes
-- **Total:** ~1436 lines in 6 files (modes) + 1 orchestrator
+- Mode files: ~1350 lines across 6 focused classes
+- UI files: ~140 lines (controls + tab-manager)
+- **Total:** ~1490 lines in 6 modes + 2 UI modules + 1 orchestrator
 
 **Benefits:**
 - 27% reduction in ferro-simulation.js complexity
-- Each mode is 100-170 lines, single responsibility
+- Each mode is 100-460 lines, single responsibility (game modes are larger due to game logic)
 - Easy to add new modes without touching core
 - Clear mode boundaries prevent conflicts
 - Much easier to test individual modes
+- Tab-based UI cleanly separates control categories

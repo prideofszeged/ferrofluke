@@ -480,6 +480,38 @@ export function setupControls(simulation) {
       });
     }
   }
+
+  // Panel toggle functionality
+  const panelToggle = document.querySelector('.panel-toggle');
+  const controlsPanel = document.querySelector('.controls');
+
+  if (panelToggle && controlsPanel) {
+    function togglePanel() {
+      const isCollapsed = controlsPanel.classList.toggle('collapsed');
+      panelToggle.innerHTML = isCollapsed ? '&gt;&gt;' : '&lt;&lt;';
+      panelToggle.setAttribute('aria-label', isCollapsed ? 'Show controls panel' : 'Hide controls panel');
+    }
+
+    panelToggle.addEventListener('click', togglePanel);
+
+    // Tab key shortcut to toggle panel
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Only trigger if not typing in an input
+        const activeElement = document.activeElement;
+        const isTyping = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT'
+        );
+
+        if (!isTyping) {
+          e.preventDefault();
+          togglePanel();
+        }
+      }
+    });
+  }
 }
 
 export { updateRangeTooltip };
