@@ -15,3 +15,4 @@
 - Multi-magnet support
 - Screensaver / autonomous mode (magnet drift + preset cycling)
 - CLAUDE.md guidance file for Claude Code
+- TEST
