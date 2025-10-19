@@ -1,4 +1,5 @@
 import { SimulationMode } from './simulation-mode.js';
+import { FireworksEffect } from '../effects/fireworks-effect.js';
 
 /**
  * Interactive particle mode with manual magnet control.
@@ -8,6 +9,8 @@ export class InteractiveMode extends SimulationMode {
   constructor(simulation) {
     super(simulation);
     this._frame = 0;
+    this.effect = null;
+    this.setEffect(simulation.state.interactiveEffect || 'none');
   }
 
   update(dt) {
@@ -15,6 +18,9 @@ export class InteractiveMode extends SimulationMode {
     const activeMagnets = state.magnetEnabled ? magnets : [];
     particles.update(dt, state, activeMagnets);
     this._frame += 1;
+    if (this.effect && this.effect.update) {
+      this.effect.update(dt, this.simulation);
+    }
   }
 
   render(ctx) {
@@ -27,6 +33,11 @@ export class InteractiveMode extends SimulationMode {
 
     // Draw particles
     particles.draw(ctx, state);
+
+    // Effect overlay (e.g., fireworks)
+    if (this.effect && this.effect.render) {
+      this.effect.render(ctx, this.simulation);
+    }
   }
 
   drawFieldLines(ctx) {
@@ -84,5 +95,17 @@ export class InteractiveMode extends SimulationMode {
 
   get name() {
     return 'interactive';
+  }
+
+  setEffect(name) {
+    if (this.effect && this.effect.onExit) this.effect.onExit(this.simulation);
+    switch (name) {
+      case 'fireworks':
+        this.effect = new FireworksEffect();
+        break;
+      default:
+        this.effect = null;
+    }
+    if (this.effect && this.effect.onEnter) this.effect.onEnter(this.simulation);
   }
 }

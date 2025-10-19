@@ -506,6 +506,16 @@ button:hover {
             </div>
           </fieldset>
           <fieldset>
+            <legend>Effects</legend>
+            <label title="Choose an interactive visual effect">
+              Effect
+              <select id="interactive-effect">
+                <option value="none">None</option>
+                <option value="fireworks">Fireworks</option>
+              </select>
+            </label>
+          </fieldset>
+          <fieldset>
             <legend>Field Lines</legend>
             <label class="checkbox" title="Toggle visualisation of magnetic field lines">
               <input type="checkbox" id="show-field-lines" checked />
@@ -693,6 +703,7 @@ const defaultState = {
   particleShape: 'circle',
   particleGlow: 8,
   particleSpeed: 1,
+  interactiveEffect: 'none',
   magnetEnabled: true,
   magnetStrength: 220,
   magnetFalloff: 1.6,
@@ -1756,6 +1767,165 @@ class FerroSimulation {
   }
 }
 
+// Simple fireworks effect for Interactive mode.
+// When nearby particles "touch", spawn spark fragments and respawn the particles.
+
+class FireworksEffect {
+  constructor() {
+    this.sparks = [];
+    this.maxExplosionsPerFrame = 8;
+    this.cooldownMs = 140; // minimal time before a particle can explode again
+    this._lastExplodedAt = new WeakMap();
+  }
+
+  onEnter(sim) {
+    // no-op for now
+  }
+
+  onExit(sim) {
+    this.sparks.length = 0;
+  }
+
+  update(dt, sim) {
+    const { particles } = sim;
+    const list = particles.particles;
+    if (!list || list.length < 2) return;
+
+    // Update sparks
+    this._updateSparks(dt, sim);
+
+    // Build a simple spatial grid for neighbor checks
+    const cellSize = 10; // ~ particle size scale
+    const grid = new Map();
+    const width = particles.width;
+    const height = particles.height;
+
+    for (let i = 0; i < list.length; i += 1) {
+      const p = list[i];
+      const cx = ((p.x / cellSize) | 0);
+      const cy = ((p.y / cellSize) | 0);
+      const key = (cx << 16) ^ cy;
+      let bucket = grid.get(key);
+      if (!bucket) {
+        bucket = [];
+        grid.set(key, bucket);
+      }
+      bucket.push(p);
+    }
+
+    let explosions = 0;
+    const now = performance.now();
+    const neighborOffsets = [
+      [0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1],
+    ];
+
+    // Detect simple pairwise contacts within neighboring cells
+    outer: for (const [key, bucket] of grid.entries()) {
+      const cx = key >> 16;
+      const cy = (key & 0xffff) << 16 >> 16; // sign-extend
+      for (let b = 0; b < neighborOffsets.length; b += 1) {
+        const nx = cx + neighborOffsets[b][0];
+        const ny = cy + neighborOffsets[b][1];
+        const nkey = (nx << 16) ^ ny;
+        const nb = grid.get(nkey);
+        if (!nb) continue;
+
+        for (let i = 0; i < bucket.length; i += 1) {
+          const a = bucket[i];
+          const lastA = this._lastExplodedAt.get(a) || 0;
+          if (now - lastA < this.cooldownMs) continue;
+          for (let j = 0; j < nb.length; j += 1) {
+            const bPart = nb[j];
+            if (a === bPart) continue;
+            const lastB = this._lastExplodedAt.get(bPart) || 0;
+            if (now - lastB < this.cooldownMs) continue;
+
+            const dx = bPart.x - a.x;
+            const dy = bPart.y - a.y;
+            const r = (a.size + bPart.size) * 0.5 * 0.55; // conservative touch threshold
+            if (dx * dx + dy * dy <= r * r) {
+              this._explode((a.x + bPart.x) * 0.5, (a.y + bPart.y) * 0.5, sim);
+              this._respawnParticle(a, particles, width, height);
+              this._respawnParticle(bPart, particles, width, height);
+              this._lastExplodedAt.set(a, now);
+              this._lastExplodedAt.set(bPart, now);
+              explosions += 1;
+              if (explosions >= this.maxExplosionsPerFrame) break outer;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  _respawnParticle(p, particles, width, height) {
+    p.x = Math.random() * width;
+    p.y = Math.random() * height;
+    p.vx = (Math.random() - 0.5) * 8;
+    p.vy = (Math.random() - 0.5) * 8;
+    p.rotation = Math.random() * Math.PI * 2;
+    p.spin = (Math.random() - 0.5) * 2;
+    p.golden = false;
+  }
+
+  _explode(x, y, sim) {
+    const sparks = this.sparks;
+    const count = 14 + (Math.random() * 10 | 0);
+    const baseHue = 40 + Math.random() * 40; // warm fireworks
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.2;
+      const speed = 60 + Math.random() * 180;
+      const life = 0.5 + Math.random() * 0.4;
+      const size = 1 + Math.random() * 2.2;
+      const sat = 70 + (Math.random() * 30 | 0);
+      const light = 55 + (Math.random() * 25 | 0);
+      sparks.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        age: 0,
+        size,
+        color: `hsl(${(baseHue + i * 3) | 0} ${sat}% ${light}%)`,
+      });
+    }
+  }
+
+  _updateSparks(dt, sim) {
+    const drag = Math.pow(0.86, dt * 60);
+    const g = 50; // mild gravity
+    for (let i = this.sparks.length - 1; i >= 0; i -= 1) {
+      const s = this.sparks[i];
+      s.age += dt;
+      s.vx *= drag;
+      s.vy = s.vy * drag + g * dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      if (s.age >= s.life) {
+        this.sparks.splice(i, 1);
+      }
+    }
+  }
+
+  render(ctx, sim) {
+    if (this.sparks.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < this.sparks.length; i += 1) {
+      const s = this.sparks[i];
+      const t = 1 - Math.min(1, s.age / s.life);
+      ctx.globalAlpha = Math.max(0, t) * 0.9;
+      ctx.fillStyle = s.color;
+      ctx.shadowColor = s.color;
+      ctx.shadowBlur = 6 + t * 10;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
 /**
  * Base class for simulation modes.
  * Each mode encapsulates specific update logic, rendering, and event handling.
@@ -1875,6 +2045,8 @@ class InteractiveMode extends SimulationMode {
   constructor(simulation) {
     super(simulation);
     this._frame = 0;
+    this.effect = null;
+    this.setEffect(simulation.state.interactiveEffect || 'none');
   }
 
   update(dt) {
@@ -1882,6 +2054,9 @@ class InteractiveMode extends SimulationMode {
     const activeMagnets = state.magnetEnabled ? magnets : [];
     particles.update(dt, state, activeMagnets);
     this._frame += 1;
+    if (this.effect && this.effect.update) {
+      this.effect.update(dt, this.simulation);
+    }
   }
 
   render(ctx) {
@@ -1894,6 +2069,11 @@ class InteractiveMode extends SimulationMode {
 
     // Draw particles
     particles.draw(ctx, state);
+
+    // Effect overlay (e.g., fireworks)
+    if (this.effect && this.effect.render) {
+      this.effect.render(ctx, this.simulation);
+    }
   }
 
   drawFieldLines(ctx) {
@@ -1951,6 +2131,18 @@ class InteractiveMode extends SimulationMode {
 
   get name() {
     return 'interactive';
+  }
+
+  setEffect(name) {
+    if (this.effect && this.effect.onExit) this.effect.onExit(this.simulation);
+    switch (name) {
+      case 'fireworks':
+        this.effect = new FireworksEffect();
+        break;
+      default:
+        this.effect = null;
+    }
+    if (this.effect && this.effect.onEnter) this.effect.onEnter(this.simulation);
   }
 }
 
@@ -3146,6 +3338,7 @@ function setupControls(simulation) {
   const particleColor = get('particle-color');
   const particleGlow = get('particle-glow');
   const particleSpeed = get('particle-speed');
+  const interactiveEffect = get('interactive-effect');
   const magnetStrength = get('magnet-strength');
   const magnetFalloff = get('magnet-falloff');
   const magnetSize = get('magnet-size');
@@ -3248,6 +3441,20 @@ function setupControls(simulation) {
       const value = Number(event.target.value);
       simulation.setState({ particleSpeed: value });
       updateRangeTooltip(event.target, formatter);
+    });
+  }
+
+  // Interactive Effects selector
+  if (interactiveEffect) {
+    interactiveEffect.value = simulation.state.interactiveEffect || 'none';
+    interactiveEffect.addEventListener('change', (event) => {
+      const value = event.target.value;
+      simulation.setState({ interactiveEffect: value });
+      // Apply to current mode if interactive (or wrapped inside screensaver)
+      const mode = simulation.currentMode?.wrappedMode || simulation.currentMode;
+      if (mode && mode.name === 'interactive' && typeof mode.setEffect === 'function') {
+        mode.setEffect(value);
+      }
     });
   }
 
@@ -3387,11 +3594,18 @@ function setupControls(simulation) {
         if (isScreensaver) {
           // Switch to Interactive wrapped in screensaver
           interactiveModeInstance = new InteractiveMode(simulation);
+          // Apply current effect selection
+          if (interactiveEffect && interactiveModeInstance.setEffect) {
+            interactiveModeInstance.setEffect(interactiveEffect.value);
+          }
           const screensaver = new ScreensaverMode(simulation, interactiveModeInstance);
           simulation.setMode(screensaver);
         } else {
           // Switch to Interactive mode directly
           interactiveModeInstance = new InteractiveMode(simulation);
+          if (interactiveEffect && interactiveModeInstance.setEffect) {
+            interactiveModeInstance.setEffect(interactiveEffect.value);
+          }
           simulation.setMode(interactiveModeInstance);
         }
       }
@@ -3525,20 +3739,23 @@ function setupControls(simulation) {
       }
 
       // Create new game mode instance and switch to it
-      const newGameMode = new GameMode(simulation);
-      simulation.setMode(newGameMode);
+          const newGameMode = new GameMode(simulation);
+          simulation.setMode(newGameMode);
 
       // Override end button handler to return to interactive mode
-      const gameEndButton = document.querySelector('#game-end');
-      if (gameEndButton) {
-        const handleEndClick = () => {
-          // Return to interactive mode
-          interactiveModeInstance = new InteractiveMode(simulation);
-          simulation.setMode(interactiveModeInstance);
-          gameEndButton.removeEventListener('click', handleEndClick);
-        };
-        gameEndButton.addEventListener('click', handleEndClick);
-      }
+          const gameEndButton = document.querySelector('#game-end');
+          if (gameEndButton) {
+            const handleEndClick = () => {
+              // Return to interactive mode
+              interactiveModeInstance = new InteractiveMode(simulation);
+              if (interactiveEffect && interactiveModeInstance.setEffect) {
+                interactiveModeInstance.setEffect(interactiveEffect.value);
+              }
+              simulation.setMode(interactiveModeInstance);
+              gameEndButton.removeEventListener('click', handleEndClick);
+            };
+            gameEndButton.addEventListener('click', handleEndClick);
+          }
     });
   }
 
@@ -3557,20 +3774,23 @@ function setupControls(simulation) {
       }
 
       // Create new star monster mode instance and switch to it
-      const starMonsterMode = new StarMonsterMode(simulation);
-      simulation.setMode(starMonsterMode);
+          const starMonsterMode = new StarMonsterMode(simulation);
+          simulation.setMode(starMonsterMode);
 
       // Override end button handler to return to interactive mode
-      const starMonsterEndButton = document.querySelector('#star-monster-end');
-      if (starMonsterEndButton) {
-        const handleEndClick = () => {
-          // Return to interactive mode
-          interactiveModeInstance = new InteractiveMode(simulation);
-          simulation.setMode(interactiveModeInstance);
-          starMonsterEndButton.removeEventListener('click', handleEndClick);
-        };
-        starMonsterEndButton.addEventListener('click', handleEndClick);
-      }
+          const starMonsterEndButton = document.querySelector('#star-monster-end');
+          if (starMonsterEndButton) {
+            const handleEndClick = () => {
+              // Return to interactive mode
+              interactiveModeInstance = new InteractiveMode(simulation);
+              if (interactiveEffect && interactiveModeInstance.setEffect) {
+                interactiveModeInstance.setEffect(interactiveEffect.value);
+              }
+              simulation.setMode(interactiveModeInstance);
+              starMonsterEndButton.removeEventListener('click', handleEndClick);
+            };
+            starMonsterEndButton.addEventListener('click', handleEndClick);
+          }
     });
   }
 

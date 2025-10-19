@@ -29,6 +29,7 @@ export function setupControls(simulation) {
   const particleColor = get('particle-color');
   const particleGlow = get('particle-glow');
   const particleSpeed = get('particle-speed');
+  const interactiveEffect = get('interactive-effect');
   const magnetStrength = get('magnet-strength');
   const magnetFalloff = get('magnet-falloff');
   const magnetSize = get('magnet-size');
@@ -131,6 +132,20 @@ export function setupControls(simulation) {
       const value = Number(event.target.value);
       simulation.setState({ particleSpeed: value });
       updateRangeTooltip(event.target, formatter);
+    });
+  }
+
+  // Interactive Effects selector
+  if (interactiveEffect) {
+    interactiveEffect.value = simulation.state.interactiveEffect || 'none';
+    interactiveEffect.addEventListener('change', (event) => {
+      const value = event.target.value;
+      simulation.setState({ interactiveEffect: value });
+      // Apply to current mode if interactive (or wrapped inside screensaver)
+      const mode = simulation.currentMode?.wrappedMode || simulation.currentMode;
+      if (mode && mode.name === 'interactive' && typeof mode.setEffect === 'function') {
+        mode.setEffect(value);
+      }
     });
   }
 
@@ -270,11 +285,18 @@ export function setupControls(simulation) {
         if (isScreensaver) {
           // Switch to Interactive wrapped in screensaver
           interactiveModeInstance = new InteractiveMode(simulation);
+          // Apply current effect selection
+          if (interactiveEffect && interactiveModeInstance.setEffect) {
+            interactiveModeInstance.setEffect(interactiveEffect.value);
+          }
           const screensaver = new ScreensaverMode(simulation, interactiveModeInstance);
           simulation.setMode(screensaver);
         } else {
           // Switch to Interactive mode directly
           interactiveModeInstance = new InteractiveMode(simulation);
+          if (interactiveEffect && interactiveModeInstance.setEffect) {
+            interactiveModeInstance.setEffect(interactiveEffect.value);
+          }
           simulation.setMode(interactiveModeInstance);
         }
       }
@@ -408,20 +430,23 @@ export function setupControls(simulation) {
       }
 
       // Create new game mode instance and switch to it
-      const newGameMode = new GameMode(simulation);
-      simulation.setMode(newGameMode);
+          const newGameMode = new GameMode(simulation);
+          simulation.setMode(newGameMode);
 
       // Override end button handler to return to interactive mode
-      const gameEndButton = document.querySelector('#game-end');
-      if (gameEndButton) {
-        const handleEndClick = () => {
-          // Return to interactive mode
-          interactiveModeInstance = new InteractiveMode(simulation);
-          simulation.setMode(interactiveModeInstance);
-          gameEndButton.removeEventListener('click', handleEndClick);
-        };
-        gameEndButton.addEventListener('click', handleEndClick);
-      }
+          const gameEndButton = document.querySelector('#game-end');
+          if (gameEndButton) {
+            const handleEndClick = () => {
+              // Return to interactive mode
+              interactiveModeInstance = new InteractiveMode(simulation);
+              if (interactiveEffect && interactiveModeInstance.setEffect) {
+                interactiveModeInstance.setEffect(interactiveEffect.value);
+              }
+              simulation.setMode(interactiveModeInstance);
+              gameEndButton.removeEventListener('click', handleEndClick);
+            };
+            gameEndButton.addEventListener('click', handleEndClick);
+          }
     });
   }
 
@@ -440,20 +465,23 @@ export function setupControls(simulation) {
       }
 
       // Create new star monster mode instance and switch to it
-      const starMonsterMode = new StarMonsterMode(simulation);
-      simulation.setMode(starMonsterMode);
+          const starMonsterMode = new StarMonsterMode(simulation);
+          simulation.setMode(starMonsterMode);
 
       // Override end button handler to return to interactive mode
-      const starMonsterEndButton = document.querySelector('#star-monster-end');
-      if (starMonsterEndButton) {
-        const handleEndClick = () => {
-          // Return to interactive mode
-          interactiveModeInstance = new InteractiveMode(simulation);
-          simulation.setMode(interactiveModeInstance);
-          starMonsterEndButton.removeEventListener('click', handleEndClick);
-        };
-        starMonsterEndButton.addEventListener('click', handleEndClick);
-      }
+          const starMonsterEndButton = document.querySelector('#star-monster-end');
+          if (starMonsterEndButton) {
+            const handleEndClick = () => {
+              // Return to interactive mode
+              interactiveModeInstance = new InteractiveMode(simulation);
+              if (interactiveEffect && interactiveModeInstance.setEffect) {
+                interactiveModeInstance.setEffect(interactiveEffect.value);
+              }
+              simulation.setMode(interactiveModeInstance);
+              starMonsterEndButton.removeEventListener('click', handleEndClick);
+            };
+            starMonsterEndButton.addEventListener('click', handleEndClick);
+          }
     });
   }
 

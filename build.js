@@ -16,6 +16,7 @@ const moduleOrder = [
   'src/core/magnet.js',
   'src/core/particle-system.js',
   'src/core/ferro-simulation.js',
+  'src/effects/fireworks-effect.js',
   'src/modes/simulation-mode.js',
   'src/modes/interactive-mode.js',
   'src/modes/life-mode.js',
