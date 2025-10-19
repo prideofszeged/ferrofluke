@@ -45,6 +45,7 @@ export class ParticleSystem {
     const speed = state.particleSpeed;
     const magnetRadius = state.magnetSize;
     const sizeScale = magnetRadius / 22;
+    const falloffPlus = falloff + 1;
 
     const dtSeconds = Math.min(0.05, dt) * speed;
     const frameFactor = dtSeconds * 60;
@@ -56,24 +57,26 @@ export class ParticleSystem {
       let accumVx = 0;
       let accumVy = 0;
 
-      magnets.forEach((magnet) => {
+      for (let m = 0; m < magnets.length; m += 1) {
+        const magnet = magnets[m];
         const dx = magnet.x - p.x;
         const dy = magnet.y - p.y;
         const distSq = dx * dx + dy * dy + 0.0001;
         const dist = Math.sqrt(distSq);
-        const normX = dx / dist;
-        const normY = dy / dist;
+        const invDist = 1 / dist;
+        const normX = dx * invDist;
+        const normY = dy * invDist;
 
-        const field = strength * 130000 * sizeScale / Math.pow(dist + magnetRadius * 0.9, falloff + 1);
+        const field = (strength * 130000 * sizeScale) / Math.pow(dist + magnetRadius * 0.9, falloffPlus);
         const force = Math.max(-3000, Math.min(3000, field * magnet.mode));
         accumVx += normX * force * dtSeconds;
         accumVy += normY * force * dtSeconds;
 
         const swirl = (0.52 + strength / 420) * magnet.mode;
-        const swirlScale = dtSeconds * 140 * sizeScale / (dist / 80 + 1.1);
+        const swirlScale = (dtSeconds * 140 * sizeScale) / (dist / 80 + 1.1);
         accumVx += -normY * swirl * swirlScale;
         accumVy += normX * swirl * swirlScale;
-      });
+      }
 
       p.vx += accumVx;
       p.vy += accumVy;
@@ -109,6 +112,45 @@ export class ParticleSystem {
     ctx.shadowBlur = state.particleGlow;
     const shape = state.particleShape;
 
+    if (shape === 'circle') {
+      // Batch circles into a single fill path
+      ctx.beginPath();
+      for (let i = 0; i < this.particles.length; i += 1) {
+        const p = this.particles[i];
+        const r = p.size * 0.5;
+        // Move to start to avoid implicit line from previous arc
+        ctx.moveTo(p.x + r, p.y);
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      // Golden outlines batched separately
+      let hasGolden = false;
+      for (let i = 0; i < this.particles.length && !hasGolden; i += 1) {
+        if (this.particles[i].golden) hasGolden = true;
+      }
+      if (hasGolden) {
+        ctx.save();
+        ctx.beginPath();
+        for (let i = 0; i < this.particles.length; i += 1) {
+          const p = this.particles[i];
+          if (!p.golden) continue;
+          const r = p.size * 0.7;
+          ctx.moveTo(p.x + r, p.y);
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        }
+        ctx.strokeStyle = '#ffd760';
+        ctx.lineWidth = 1.3;
+        ctx.shadowColor = '#ffe89a';
+        ctx.shadowBlur = Math.max(16, state.particleGlow + 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+      return;
+    }
+
+    // Fallback for non-circle shapes (keeps current visuals)
     for (let i = 0; i < this.particles.length; i += 1) {
       const p = this.particles[i];
       ctx.save();
@@ -126,10 +168,6 @@ export class ParticleSystem {
           ctx.closePath();
           ctx.fill();
           break;
-        default:
-          ctx.beginPath();
-          ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2);
-          ctx.fill();
       }
       ctx.restore();
 

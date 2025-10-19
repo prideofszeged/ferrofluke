@@ -7,12 +7,14 @@ import { SimulationMode } from './simulation-mode.js';
 export class InteractiveMode extends SimulationMode {
   constructor(simulation) {
     super(simulation);
+    this._frame = 0;
   }
 
   update(dt) {
     const { particles, magnets, state } = this.simulation;
     const activeMagnets = state.magnetEnabled ? magnets : [];
     particles.update(dt, state, activeMagnets);
+    this._frame += 1;
   }
 
   render(ctx) {
@@ -31,8 +33,10 @@ export class InteractiveMode extends SimulationMode {
     const { magnets, state, width, height } = this.simulation;
     const color = state.fieldLineColor;
     const radius = state.magnetSize;
-    const lines = 28;
-    const maxSteps = 96;
+    // Throttle drawing to reduce cost and samples
+    if ((this._frame % 3) !== 0) return;
+    const lines = 16;
+    const maxSteps = 64;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

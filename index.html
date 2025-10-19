@@ -688,17 +688,17 @@ button:hover {
   <script>
 (() => {
 const defaultState = {
-  particleCount: 700,
+  particleCount: 500,
   particleColor: '#1e90ff',
   particleShape: 'circle',
-  particleGlow: 12,
+  particleGlow: 8,
   particleSpeed: 1,
   magnetEnabled: true,
   magnetStrength: 220,
   magnetFalloff: 1.6,
   magnetSize: 22,
   magnetColor: '#ff4500',
-  showFieldLines: true,
+  showFieldLines: false,
   fieldLineColor: '#ffffff',
   lifeMode: false,
   lifeSpeed: 10,
@@ -1080,6 +1080,7 @@ class ParticleSystem {
     const speed = state.particleSpeed;
     const magnetRadius = state.magnetSize;
     const sizeScale = magnetRadius / 22;
+    const falloffPlus = falloff + 1;
 
     const dtSeconds = Math.min(0.05, dt) * speed;
     const frameFactor = dtSeconds * 60;
@@ -1091,24 +1092,26 @@ class ParticleSystem {
       let accumVx = 0;
       let accumVy = 0;
 
-      magnets.forEach((magnet) => {
+      for (let m = 0; m < magnets.length; m += 1) {
+        const magnet = magnets[m];
         const dx = magnet.x - p.x;
         const dy = magnet.y - p.y;
         const distSq = dx * dx + dy * dy + 0.0001;
         const dist = Math.sqrt(distSq);
-        const normX = dx / dist;
-        const normY = dy / dist;
+        const invDist = 1 / dist;
+        const normX = dx * invDist;
+        const normY = dy * invDist;
 
-        const field = strength * 130000 * sizeScale / Math.pow(dist + magnetRadius * 0.9, falloff + 1);
+        const field = (strength * 130000 * sizeScale) / Math.pow(dist + magnetRadius * 0.9, falloffPlus);
         const force = Math.max(-3000, Math.min(3000, field * magnet.mode));
         accumVx += normX * force * dtSeconds;
         accumVy += normY * force * dtSeconds;
 
         const swirl = (0.52 + strength / 420) * magnet.mode;
-        const swirlScale = dtSeconds * 140 * sizeScale / (dist / 80 + 1.1);
+        const swirlScale = (dtSeconds * 140 * sizeScale) / (dist / 80 + 1.1);
         accumVx += -normY * swirl * swirlScale;
         accumVy += normX * swirl * swirlScale;
-      });
+      }
 
       p.vx += accumVx;
       p.vy += accumVy;
@@ -1144,6 +1147,45 @@ class ParticleSystem {
     ctx.shadowBlur = state.particleGlow;
     const shape = state.particleShape;
 
+    if (shape === 'circle') {
+      // Batch circles into a single fill path
+      ctx.beginPath();
+      for (let i = 0; i < this.particles.length; i += 1) {
+        const p = this.particles[i];
+        const r = p.size * 0.5;
+        // Move to start to avoid implicit line from previous arc
+        ctx.moveTo(p.x + r, p.y);
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      // Golden outlines batched separately
+      let hasGolden = false;
+      for (let i = 0; i < this.particles.length && !hasGolden; i += 1) {
+        if (this.particles[i].golden) hasGolden = true;
+      }
+      if (hasGolden) {
+        ctx.save();
+        ctx.beginPath();
+        for (let i = 0; i < this.particles.length; i += 1) {
+          const p = this.particles[i];
+          if (!p.golden) continue;
+          const r = p.size * 0.7;
+          ctx.moveTo(p.x + r, p.y);
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        }
+        ctx.strokeStyle = '#ffd760';
+        ctx.lineWidth = 1.3;
+        ctx.shadowColor = '#ffe89a';
+        ctx.shadowBlur = Math.max(16, state.particleGlow + 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+      return;
+    }
+
+    // Fallback for non-circle shapes (keeps current visuals)
     for (let i = 0; i < this.particles.length; i += 1) {
       const p = this.particles[i];
       ctx.save();
@@ -1161,10 +1203,6 @@ class ParticleSystem {
           ctx.closePath();
           ctx.fill();
           break;
-        default:
-          ctx.beginPath();
-          ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2);
-          ctx.fill();
       }
       ctx.restore();
 
@@ -1255,6 +1293,17 @@ class FerroSimulation {
     this.attachEvents();
     this.resize();
     this.particles.reset(this.state.particleCount);
+
+    // Simple performance governor state
+    this.autoTuneEnabled = true;
+    this.baseParticleTarget = this.state.particleCount;
+    this.minParticleCount = 200;
+    this._ftWindow = 60;
+    this._ftIndex = 0;
+    this._ftSum = this._ftWindow * 16;
+    this._ft = new Array(this._ftWindow).fill(16);
+    this._badFrames = 0;
+    this._goodFrames = 0;
   }
 
   attachEvents() {
@@ -1325,6 +1374,7 @@ class FerroSimulation {
     const dt = deltaMs / 1000;
 
     this.step(dt);
+    this.tunePerformance(deltaMs);
     requestAnimationFrame(this.loop);
   }
 
@@ -1342,6 +1392,49 @@ class FerroSimulation {
     }
 
     this.render();
+  }
+
+  tunePerformance(frameMs) {
+    if (!this.autoTuneEnabled) return;
+    // Maintain rolling average of frame time
+    const idx = this._ftIndex;
+    this._ftSum -= this._ft[idx];
+    this._ft[idx] = frameMs;
+    this._ftSum += frameMs;
+    this._ftIndex = (idx + 1) % this._ftWindow;
+    const avg = this._ftSum / this._ftWindow;
+
+    if (avg > 18) {
+      this._badFrames += 1;
+      this._goodFrames = 0;
+    } else if (avg < 14) {
+      this._goodFrames += 1;
+      this._badFrames = 0;
+    } else {
+      this._badFrames = 0;
+      this._goodFrames = 0;
+    }
+
+    // Step down quickly on sustained slow frames
+    if (this._badFrames >= 15) {
+      this._badFrames = 0;
+      const nextCount = Math.max(this.minParticleCount, this.state.particleCount - 50);
+      if (nextCount !== this.state.particleCount) {
+        this.setState({ particleCount: nextCount });
+      }
+      if (this.state.particleGlow > 0) {
+        this.setState({ particleGlow: Math.max(0, this.state.particleGlow - 2) });
+      }
+    }
+
+    // Step up gently on sustained fast frames
+    if (this._goodFrames >= 120) {
+      this._goodFrames = 0;
+      const nextCount = Math.min(this.baseParticleTarget, this.state.particleCount + 25);
+      if (nextCount !== this.state.particleCount) {
+        this.setState({ particleCount: nextCount });
+      }
+    }
   }
 
   render() {
@@ -1781,12 +1874,14 @@ class SimulationMode {
 class InteractiveMode extends SimulationMode {
   constructor(simulation) {
     super(simulation);
+    this._frame = 0;
   }
 
   update(dt) {
     const { particles, magnets, state } = this.simulation;
     const activeMagnets = state.magnetEnabled ? magnets : [];
     particles.update(dt, state, activeMagnets);
+    this._frame += 1;
   }
 
   render(ctx) {
@@ -1805,8 +1900,10 @@ class InteractiveMode extends SimulationMode {
     const { magnets, state, width, height } = this.simulation;
     const color = state.fieldLineColor;
     const radius = state.magnetSize;
-    const lines = 28;
-    const maxSteps = 96;
+    // Throttle drawing to reduce cost and samples
+    if ((this._frame % 3) !== 0) return;
+    const lines = 16;
+    const maxSteps = 64;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

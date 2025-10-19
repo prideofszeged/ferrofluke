@@ -57,6 +57,17 @@ export class FerroSimulation {
     this.attachEvents();
     this.resize();
     this.particles.reset(this.state.particleCount);
+
+    // Simple performance governor state
+    this.autoTuneEnabled = true;
+    this.baseParticleTarget = this.state.particleCount;
+    this.minParticleCount = 200;
+    this._ftWindow = 60;
+    this._ftIndex = 0;
+    this._ftSum = this._ftWindow * 16;
+    this._ft = new Array(this._ftWindow).fill(16);
+    this._badFrames = 0;
+    this._goodFrames = 0;
   }
 
   attachEvents() {
@@ -127,6 +138,7 @@ export class FerroSimulation {
     const dt = deltaMs / 1000;
 
     this.step(dt);
+    this.tunePerformance(deltaMs);
     requestAnimationFrame(this.loop);
   }
 
@@ -144,6 +156,49 @@ export class FerroSimulation {
     }
 
     this.render();
+  }
+
+  tunePerformance(frameMs) {
+    if (!this.autoTuneEnabled) return;
+    // Maintain rolling average of frame time
+    const idx = this._ftIndex;
+    this._ftSum -= this._ft[idx];
+    this._ft[idx] = frameMs;
+    this._ftSum += frameMs;
+    this._ftIndex = (idx + 1) % this._ftWindow;
+    const avg = this._ftSum / this._ftWindow;
+
+    if (avg > 18) {
+      this._badFrames += 1;
+      this._goodFrames = 0;
+    } else if (avg < 14) {
+      this._goodFrames += 1;
+      this._badFrames = 0;
+    } else {
+      this._badFrames = 0;
+      this._goodFrames = 0;
+    }
+
+    // Step down quickly on sustained slow frames
+    if (this._badFrames >= 15) {
+      this._badFrames = 0;
+      const nextCount = Math.max(this.minParticleCount, this.state.particleCount - 50);
+      if (nextCount !== this.state.particleCount) {
+        this.setState({ particleCount: nextCount });
+      }
+      if (this.state.particleGlow > 0) {
+        this.setState({ particleGlow: Math.max(0, this.state.particleGlow - 2) });
+      }
+    }
+
+    // Step up gently on sustained fast frames
+    if (this._goodFrames >= 120) {
+      this._goodFrames = 0;
+      const nextCount = Math.min(this.baseParticleTarget, this.state.particleCount + 25);
+      if (nextCount !== this.state.particleCount) {
+        this.setState({ particleCount: nextCount });
+      }
+    }
   }
 
   render() {
